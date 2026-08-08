@@ -10,7 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_08_08_134628) do
+ActiveRecord::Schema[7.2].define(version: 2026_08_08_134929) do
+  create_table "refresh_tokens", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "token_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token_digest"], name: "index_refresh_tokens_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_refresh_tokens_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", null: false
     t.string "google_uid", null: false
@@ -21,4 +32,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_08_134628) do
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
   end
+
+  add_foreign_key "refresh_tokens", "users"
 end
