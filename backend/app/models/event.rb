@@ -14,12 +14,13 @@ class Event < ApplicationRecord
 
   def recurrence_params=(hash)
     self.recurrence_rule = hash.present? ? hash.to_json : nil
+    @recurrence_params = nil
   end
 
   def recurrence_params
     return nil if recurrence_rule.blank?
 
-    JSON.parse(recurrence_rule)
+    @recurrence_params ||= JSON.parse(recurrence_rule)
   end
 
   def recurring?
@@ -60,7 +61,7 @@ class Event < ApplicationRecord
   def end_at_after_start_at
     return if start_at.blank? || end_at.blank?
 
-    errors.add(:end_at, "must be after start_at") if end_at < start_at
+    errors.add(:end_at, "must be after start_at") if end_at <= start_at
   end
 
   def recurrence_params_valid
