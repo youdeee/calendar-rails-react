@@ -5,19 +5,25 @@ class AuthController < ApplicationController
   REFRESH_COOKIE_PATH = "/api/auth"
 
   def login
-    payload = GoogleIdTokenVerifier.verify(params.require(:id_token))
-    user = User.find_or_create_from_google!(payload)
+    begin
+      payload = GoogleIdTokenVerifier.verify(params.require(:id_token))
+      user = User.find_or_create_from_google!(payload)
+    rescue GoogleIdTokenVerifier::InvalidToken, ArgumentError
+      return render json: { error: { message: "Invalid Google token" } }, status: :unauthorized
+    end
+
     issue_tokens_for(user)
-  rescue GoogleIdTokenVerifier::InvalidToken, ArgumentError
-    render json: { error: { message: "Invalid Google token" } }, status: :unauthorized
   end
 
   def refresh
     record = RefreshToken.authenticate(cookies[REFRESH_COOKIE_NAME])
     raise Unauthorized unless record
 
-    record.revoke!
-    issue_tokens_for(record.user, status: :ok)
+    ActiveRecord::Base.transaction do
+      raise Unauthorized unless RefreshToken.claim_atomically!(record.id)
+
+      issue_tokens_for(record.user, status: :ok)
+    end
   end
 
   def logout

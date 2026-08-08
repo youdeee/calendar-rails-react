@@ -33,6 +33,15 @@ class RefreshToken < ApplicationRecord
     record
   end
 
+  # Atomically marks an already-authenticated, still-valid token as consumed.
+  # Plain `revoke!` after `authenticate` would let two concurrent refresh
+  # requests both pass the read before either writes; the WHERE revoked_at: nil
+  # guard means only one caller's UPDATE can affect a row, so only one of them
+  # ever wins the claim.
+  def self.claim_atomically!(id)
+    where(id: id, revoked_at: nil).update_all(revoked_at: Time.current) == 1
+  end
+
   def revoke!
     update!(revoked_at: Time.current)
   end

@@ -1,6 +1,8 @@
 class ApplicationController < ActionController::API
   class Unauthorized < StandardError; end
 
+  rescue_from StandardError, with: :render_server_error
+  rescue_from ActionController::ParameterMissing, with: :render_bad_request
   rescue_from Unauthorized, with: :render_unauthorized
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable
@@ -37,5 +39,14 @@ class ApplicationController < ActionController::API
 
   def render_unprocessable(exception)
     render json: { error: { message: exception.record.errors.full_messages.join(", ") } }, status: :unprocessable_entity
+  end
+
+  def render_bad_request(exception)
+    render json: { error: { message: exception.message } }, status: :bad_request
+  end
+
+  def render_server_error(exception)
+    Rails.logger.error("#{exception.class}: #{exception.message}\n#{exception.backtrace&.join("\n")}")
+    render json: { error: { message: "Internal Server Error" } }, status: :internal_server_error
   end
 end

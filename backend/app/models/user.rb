@@ -9,10 +9,11 @@ class User < ApplicationRecord
   def self.find_or_create_from_google!(payload)
     raise ArgumentError, "email not verified" unless payload["email_verified"]
 
-    find_or_create_by!(google_uid: payload["sub"]) do |user|
-      user.email = payload["email"]
-      user.name = payload["name"]
-      user.avatar_url = payload["picture"]
-    end
+    user = find_or_initialize_by(email: payload["email"])
+    user.google_uid = payload["sub"]
+    user.name = payload["name"]
+    user.avatar_url = payload["picture"]
+    user.save!
+    user
   end
 end
