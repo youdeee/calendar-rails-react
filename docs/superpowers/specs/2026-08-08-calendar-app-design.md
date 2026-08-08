@@ -25,6 +25,8 @@ Google認証のみをサポートする(自前パスワード認証は実装し�
 
 `RefreshToken`: `id, user_id, token_digest, expires_at, revoked_at`
 
+`token_digest` にはDBレベルのunique indexを設定する。
+
 ### フロー
 
 1. フロントエンドはGoogle Identity Services(JS SDK)でGoogleのIDトークンを取得し、`POST /api/sessions` に送信
@@ -59,11 +61,16 @@ Google認証のみをサポートする(自前パスワード認証は実装し�
 
 **User**: `id, email, google_uid, name, avatar_url`
 
+- `email`・`google_uid` にはDBレベルのunique indexを設定する(同時リクエストによる重複ユーザー作成を防ぐ)
+- `avatar_url` はGoogleが返すURLをそのまま `<img>` タグで表示するのみとし、サーバー側で画像を取得・加工する処理は行わない(将来そうした機能を追加する場合はSSRF対策が別途必要)
+
 **Event**: `id, user_id, title, description, start_at, end_at, all_day, recurrence_rule`
+
+- `title`・`description` には文字数上限のバリデーションを設ける(大量データ投入によるDB肥大化・表示崩れの防止)
 
 繰り返し予定は `ice_cube` gemの `IceCube::Rule` をシリアライズして `recurrence_rule` に保存する。個別の発生回はDBに保存せず、表示範囲ごとにサーバー側で展開する(`occurrences_between`)。
 
-**セキュリティ上の注意**: クライアントからは `frequency`(daily/weekly/monthly)・`interval`・`until` のような**構造化・バリデーション済みパラメータのみ**を受け取り、`IceCube::Rule` はRails側で毎回構築する。クライアントから受け取った生のシリアライズ済みルール文字列をそのまま `YAML.load` で復元することはしない(任意オブジェクト生成につながる既知の脆弱性クラスのため)。DB保存時のシリアライズもJSON形式、または安全な範囲に限定したYAMLロードを用いる。
+**セキュリティ上の注意**: クライアントからは `frequency`(daily/weekly/monthly)・`interval`・`until` のような**構造化・バリデーション済みパラメータのみ**を受け取り、`IceCube::Rule` はRails側で毎回構築する。クライアントから受け取った生のシリアライズ済みルール文字列をそのまま `YAML.load` で復元することはしない(任意オブジェクト生成につながる既知の脆弱性クラスのため)。DB保存時のシリアライズもJSON形式、または安全な範囲に限定したYAMLロードを用いる。`frequency` は許可された列挙値のみ、`interval` は正の整数のみを受け付け、異常な値による計算負荷や無限ループ相当の挙動を防ぐ。
 
 ## APIエンドポイント
 
@@ -71,7 +78,7 @@ Google認証のみをサポートする(自前パスワード認証は実装し�
 - `POST /api/token/refresh` — アクセストークン再発行(リフレッシュトークンローテーション)
 - `DELETE /api/sessions` — ログアウト(リフレッシュトークンをrevoke)
 - `GET /api/me` — ログインユーザー取得
-- `GET /api/events?from=&to=` — 期間内の予定一覧(繰り返しは展開済みで返す)
+- `GET /api/events?from=&to=` — 期間内の予定一覧(繰り返しは展開済みで返す)。`from`/`to` は日付フォーマットを検証し、取得可能な期間に上限(例: 最大3ヶ月)を設ける(極端に広い範囲を指定した繰り返し予定の展開によるDoSを防ぐ)
 - `POST /api/events` — 予定作成(繰り返しルール指定可)
 - `PATCH /api/events/:id` — 予定更新。ドラッグ&ドロップによる日付変更も本エンドポイントで`start_at`/`end_at`を更新する形で扱う
 - `DELETE /api/events/:id` — 予定削除(繰り返し予定はシリーズ全体を削除)
@@ -102,8 +109,9 @@ src/
 ## 防御多層化
 
 - **CORS**: originを許可リストで明示指定し、ワイルドカード(`*`)は使わない
-- **CSP(Content-Security-Policy)**: Google Identity Servicesのスクリプトドメインのみ許可し、XSS発生時の被害を限定する
+- **CSP(Content-Security-Policy)**: Google Identity Servicesのスクリプトドメインのみ許可し、XSS発生時の被害を限定する。`frame-ancestors 'none'` を設定しクリックジャッキングを防ぐ
 - **HTTPS強制**: 本番環境で `force_ssl` を有効にする
+- **依存関係の脆弱性チェック**: `bundler-audit`(Ruby gem)・`npm audit`(フロントエンド)を定期的に実行する運用にする
 
 ## テスト方針
 
