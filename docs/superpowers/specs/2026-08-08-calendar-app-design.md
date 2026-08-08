@@ -112,6 +112,10 @@ src/
 - **CSP(Content-Security-Policy)**: Google Identity Servicesのスクリプトドメインのみ許可し、XSS発生時の被害を限定する。`frame-ancestors 'none'` を設定しクリックジャッキングを防ぐ
 - **HTTPS強制**: 本番環境で `force_ssl` を有効にする
 - **依存関係の脆弱性チェック**: `bundler-audit`(Ruby gem)・`npm audit`(フロントエンド)を定期的に実行する運用にする
+- **シークレット管理**: JWT署名鍵・`secret_key_base`等はRails credentials(`config/master.key`)またはENV変数で管理し、`master.key`・`.env`系ファイルは `.gitignore` に含めてコミットしない
+- **Strong Parameters**: Controllerでは許可属性を明示し、`user_id`等クライアントが指定すべきでないカラムを誤って受け付けない
+- **フロントエンドの環境変数**: Viteの `VITE_` prefixが付いた環境変数はビルド成果物に埋め込まれ誰でも読める。秘密情報には `VITE_` prefixを使わない
+- **XSS対策**: `title`/`description`の表示はReactの標準エスケープに任せ、`dangerouslySetInnerHTML`は使用しない
 
 ## テスト方針
 
