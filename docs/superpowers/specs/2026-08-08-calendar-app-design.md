@@ -38,6 +38,15 @@ Google認証のみをサポートする(自前パスワード認証は実装し�
 
 フロントエンドの `api/client.ts` は、401を受けたら自動的に `/api/token/refresh` を呼んでリトライする処理を持つ。
 
+### 認証まわりのセキュリティ対策
+
+- **JWTアルゴリズム固定**: 署名はHS256固定とし、デコード時に許可アルゴリズムを明示指定する(`alg: none` 等のアルゴリズム混同攻撃を防ぐ)
+- **リフレッシュトークンの再利用検知**: revoked済みのリフレッシュトークンが再度使われた場合はトークン窃取の兆候とみなし、該当ユーザーの全リフレッシュトークンを一括revokeする(強制全端末ログアウト)
+- **Google IDトークン検証**: 署名・audience(自アプリのClient ID)・issuerに加えて `email_verified` クレームも確認し、未検証メールでのアカウント作成を防ぐ
+- **レート制限**: `POST /api/sessions`・`POST /api/token/refresh` に `rack-attack` 等でブルートフォース/DoS対策を入れる
+- **Cookie設定**: `secure` フラグは `Rails.env.production?` で環境分岐する(固定だとローカル開発のhttp環境でCookieが送られない)
+- **ログ出力対策**: `config.filter_parameters` に `id_token`・`access_token`・`refresh_token` を追加し、トークン類がRailsログに残らないようにする
+
 ## MVP機能スコープ
 
 - 予定のCRUD(作成・編集・削除)
@@ -54,6 +63,8 @@ Google認証のみをサポートする(自前パスワード認証は実装し�
 
 繰り返し予定は `ice_cube` gemの `IceCube::Rule` をシリアライズして `recurrence_rule` に保存する。個別の発生回はDBに保存せず、表示範囲ごとにサーバー側で展開する(`occurrences_between`)。
 
+**セキュリティ上の注意**: クライアントからは `frequency`(daily/weekly/monthly)・`interval`・`until` のような**構造化・バリデーション済みパラメータのみ**を受け取り、`IceCube::Rule` はRails側で毎回構築する。クライアントから受け取った生のシリアライズ済みルール文字列をそのまま `YAML.load` で復元することはしない(任意オブジェクト生成につながる既知の脆弱性クラスのため)。DB保存時のシリアライズもJSON形式、または安全な範囲に限定したYAMLロードを用いる。
+
 ## APIエンドポイント
 
 - `POST /api/sessions` — Google IDトークンでログイン
@@ -64,6 +75,8 @@ Google認証のみをサポートする(自前パスワード認証は実装し�
 - `POST /api/events` — 予定作成(繰り返しルール指定可)
 - `PATCH /api/events/:id` — 予定更新。ドラッグ&ドロップによる日付変更も本エンドポイントで`start_at`/`end_at`を更新する形で扱う
 - `DELETE /api/events/:id` — 予定削除(繰り返し予定はシリーズ全体を削除)
+
+`events` 系エンドポイントは全て `current_user.events` 経由でスコープし、他ユーザーの予定IDを指定された場合は404を返す(IDOR対策)。
 
 ## フロントエンド構成
 
@@ -85,6 +98,12 @@ src/
 
 - **Rails**: `rescue_from` で `{ error: { message } }` 形式に統一。401(未認証)・422(バリデーションエラー)を適切なステータスコードで返す
 - **フロントエンド**: TanStack Queryの `isError` でinlineエラー表示。401を受けたリクエストは `api/client.ts` のインターセプターがrefreshを試行し、refreshも失敗した場合はログイン画面に戻す
+
+## 防御多層化
+
+- **CORS**: originを許可リストで明示指定し、ワイルドカード(`*`)は使わない
+- **CSP(Content-Security-Policy)**: Google Identity Servicesのスクリプトドメインのみ許可し、XSS発生時の被害を限定する
+- **HTTPS強制**: 本番環境で `force_ssl` を有効にする
 
 ## テスト方針
 
