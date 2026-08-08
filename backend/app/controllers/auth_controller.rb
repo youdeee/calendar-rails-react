@@ -12,6 +12,14 @@ class AuthController < ApplicationController
     render json: { error: { message: "Invalid Google token" } }, status: :unauthorized
   end
 
+  def refresh
+    record = RefreshToken.authenticate(cookies[REFRESH_COOKIE_NAME])
+    raise Unauthorized unless record
+
+    record.revoke!
+    issue_tokens_for(record.user, status: :ok)
+  end
+
   def logout
     if (record = RefreshToken.authenticate(cookies[REFRESH_COOKIE_NAME]))
       record.revoke!
@@ -22,11 +30,11 @@ class AuthController < ApplicationController
 
   private
 
-  def issue_tokens_for(user)
+  def issue_tokens_for(user, status: :created)
     access_token = JsonWebToken.encode(user.id)
     raw_refresh_token, = RefreshToken.issue!(user)
     set_refresh_cookie(raw_refresh_token)
-    render json: { access_token: access_token, user: user_json(user) }, status: :created
+    render json: { access_token: access_token, user: user_json(user) }, status: status
   end
 
   def set_refresh_cookie(raw_token)
