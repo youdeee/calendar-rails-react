@@ -10,7 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_08_08_134929) do
+ActiveRecord::Schema[7.2].define(version: 2026_08_08_135432) do
+  create_table "events", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.datetime "start_at", null: false
+    t.datetime "end_at", null: false
+    t.boolean "all_day", default: false, null: false
+    t.text "recurrence_rule"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "start_at"], name: "index_events_on_user_id_and_start_at"
+    t.index ["user_id"], name: "index_events_on_user_id"
+  end
+
   create_table "refresh_tokens", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "token_digest", null: false
@@ -33,5 +47,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_08_134929) do
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
   end
 
+  add_foreign_key "events", "users"
   add_foreign_key "refresh_tokens", "users"
 end
