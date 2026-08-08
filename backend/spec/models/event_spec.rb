@@ -68,5 +68,17 @@ RSpec.describe Event, type: :model do
       expect(result.size).to eq(5)
       expect(result.first.to_date).to eq(Date.new(2026, 8, 3))
     end
+
+    it "includes an occurrence later in the day than range_end" do
+      event = build_event(start_at: Time.zone.parse("2026-08-10 10:00"), end_at: Time.zone.parse("2026-08-10 11:00"))
+      result = event.occurrences_between(Time.zone.parse("2026-08-01"), Time.zone.parse("2026-08-10"))
+      expect(result).to eq([event.start_at])
+    end
+
+    it "excludes an occurrence on the day after range_end" do
+      event = build_event(start_at: Time.zone.parse("2026-08-11 00:30"), end_at: Time.zone.parse("2026-08-11 01:30"))
+      result = event.occurrences_between(Time.zone.parse("2026-08-01"), Time.zone.parse("2026-08-10"))
+      expect(result).to eq([])
+    end
   end
 end
