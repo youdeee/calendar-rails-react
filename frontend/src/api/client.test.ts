@@ -60,6 +60,71 @@ it("returns the original 401 without looping when refresh also fails", async () 
   expect(fetchMock).toHaveBeenCalledTimes(2);
 });
 
+it("does not force a JSON Content-Type for a FormData body", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await apiFetch("/api/events", { method: "POST", body: new FormData() });
+
+  const [, init] = fetchMock.mock.calls[0];
+  expect((init!.headers as Headers).has("Content-Type")).toBe(false);
+});
+
+it("clears the session and notifies the handler when the retried request is still 401", async () => {
+  setAccessToken("expired-token");
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "new-token" }), { status: 200 }))
+    .mockResolvedValueOnce(new Response("{}", { status: 401 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const handler = vi.fn();
+  setUnauthorizedHandler(handler);
+
+  const response = await apiFetch("/api/events");
+
+  expect(response.status).toBe(401);
+  expect(handler).toHaveBeenCalledTimes(1);
+  setUnauthorizedHandler(null);
+});
+
+it("does not clear the session when the refresh endpoint fails with a non-401 error", async () => {
+  setAccessToken("expired-token");
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+    .mockResolvedValueOnce(new Response("{}", { status: 500 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const handler = vi.fn();
+  setUnauthorizedHandler(handler);
+
+  await apiFetch("/api/events");
+
+  expect(handler).not.toHaveBeenCalled();
+  setUnauthorizedHandler(null);
+});
+
+it("shares a single refresh call across concurrent 401s", async () => {
+  setAccessToken("expired-token");
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+    .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "new-token" }), { status: 200 }))
+    .mockResolvedValueOnce(new Response("{}", { status: 200 }))
+    .mockResolvedValueOnce(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const [first, second] = await Promise.all([apiFetch("/api/events"), apiFetch("/api/calendars")]);
+
+  expect(first.status).toBe(200);
+  expect(second.status).toBe(200);
+  const refreshCalls = fetchMock.mock.calls.filter(([url]) => url === "/api/auth/refresh");
+  expect(refreshCalls).toHaveLength(1);
+});
+
 describe("apiRequest", () => {
   it("throws ApiError with the parsed message on failure", async () => {
     const fetchMock = vi
