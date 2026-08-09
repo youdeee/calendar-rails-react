@@ -64,7 +64,7 @@ function toFormValues(event: CalendarEvent | undefined, defaultDate: Date): Even
 export function EventFormModal({ event, defaultDate, onClose }: Props) {
   const [values, setValues] = useState<EventFormValues>(() => toFormValues(event, defaultDate));
   const [errors, setErrors] = useState<EventFormErrors>({});
-  const [endAtTouched, setEndAtTouched] = useState(false);
+  const [endAtTouched, setEndAtTouched] = useState(Boolean(event) && !event?.all_day);
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const errorMessages = Object.values(errors).filter((message): message is string => Boolean(message));
