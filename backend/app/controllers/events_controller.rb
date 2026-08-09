@@ -32,6 +32,19 @@ class EventsController < ApplicationController
     render json: serialize_event(event), status: :created
   end
 
+  def update
+    event = current_user.events.find(params[:id])
+    event.assign_attributes(event_params)
+    apply_recurrence(event)
+    event.save!
+    render json: serialize_event(event)
+  end
+
+  def destroy
+    current_user.events.find(params[:id]).destroy!
+    head :no_content
+  end
+
   private
 
   def parse_date!(value)

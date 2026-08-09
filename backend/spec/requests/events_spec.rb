@@ -145,4 +145,49 @@ RSpec.describe "Events", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
   end
+
+  describe "PATCH /api/events/:id" do
+    it "updates an event's start_at and end_at (drag and drop)" do
+      event = user.events.create!(title: "Meeting", start_at: Time.zone.parse("2026-08-10 10:00"),
+                                   end_at: Time.zone.parse("2026-08-10 11:00"))
+
+      patch "/api/events/#{event.id}", params: {
+        event: { start_at: "2026-08-11T10:00:00+09:00", end_at: "2026-08-11T11:00:00+09:00" }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(event.reload.start_at).to eq(Time.zone.parse("2026-08-11T10:00:00+09:00"))
+    end
+
+    it "returns 404 when updating another user's event" do
+      event = other_user.events.create!(title: "Not mine", start_at: Time.zone.parse("2026-08-10 10:00"),
+                                         end_at: Time.zone.parse("2026-08-10 11:00"))
+
+      patch "/api/events/#{event.id}", params: { event: { title: "Hijacked" } }, headers: auth_headers
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "DELETE /api/events/:id" do
+    it "deletes the caller's event" do
+      event = user.events.create!(title: "Meeting", start_at: Time.zone.parse("2026-08-10 10:00"),
+                                   end_at: Time.zone.parse("2026-08-10 11:00"))
+
+      delete "/api/events/#{event.id}", headers: auth_headers
+
+      expect(response).to have_http_status(:no_content)
+      expect(Event.exists?(event.id)).to be false
+    end
+
+    it "returns 404 when deleting another user's event" do
+      event = other_user.events.create!(title: "Not mine", start_at: Time.zone.parse("2026-08-10 10:00"),
+                                         end_at: Time.zone.parse("2026-08-10 11:00"))
+
+      delete "/api/events/#{event.id}", headers: auth_headers
+
+      expect(response).to have_http_status(:not_found)
+      expect(Event.exists?(event.id)).to be true
+    end
+  end
 end
