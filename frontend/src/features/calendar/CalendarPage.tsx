@@ -98,7 +98,7 @@ export function CalendarPage() {
         {viewMode === "day" && <DayView day={currentDate} onSelectEvent={setEditingEvent} />}
       </div>
 
-      {isModalOpen && <EventFormModal event={editingEvent} onClose={closeModal} />}
+      {isModalOpen && <EventFormModal event={editingEvent} defaultDate={currentDate} onClose={closeModal} />}
     </div>
   );
 }
