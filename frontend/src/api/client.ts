@@ -32,25 +32,42 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
   unauthorizedHandler = handler;
 }
 
-async function refreshAccessToken(): Promise<boolean> {
-  const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-  if (!response.ok) {
-    setAccessToken(null);
-    unauthorizedHandler?.();
-    return false;
-  }
-  const body = await response.json();
-  setAccessToken(body.access_token);
-  return true;
+function clearSessionAndNotify() {
+  setAccessToken(null);
+  unauthorizedHandler?.();
 }
 
-export async function apiFetch(path: string, options: RequestInit = {}, retried = false): Promise<Response> {
+// Concurrent 401s must share one in-flight refresh instead of each calling
+// /api/auth/refresh independently: the backend's refresh token is single-use,
+// so a second concurrent call would lose the race and wrongly look like an
+// expired session.
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  refreshInFlight ??= (async () => {
+    try {
+      const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
+      if (!response.ok) {
+        if (response.status === 401) clearSessionAndNotify();
+        return false;
+      }
+      const body = await response.json();
+      setAccessToken(body.access_token);
+      return true;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+async function fetchWithAuth(path: string, options: RequestInit, retried: boolean): Promise<Response> {
   const isAuthEndpoint = path.startsWith("/api/auth/");
   const headers = new Headers(options.headers);
   if (accessToken && !isAuthEndpoint) {
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
-  if (options.body && !headers.has("Content-Type")) {
+  if (typeof options.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -60,14 +77,22 @@ export async function apiFetch(path: string, options: RequestInit = {}, retried 
     credentials: isAuthEndpoint ? "include" : "same-origin",
   });
 
-  if (response.status === 401 && !isAuthEndpoint && !retried) {
+  if (response.status === 401 && !isAuthEndpoint) {
+    if (retried) {
+      clearSessionAndNotify();
+      return response;
+    }
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      return apiFetch(path, options, true);
+      return fetchWithAuth(path, options, true);
     }
   }
 
   return response;
+}
+
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  return fetchWithAuth(path, options, false);
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
