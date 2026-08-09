@@ -2,6 +2,8 @@ import { validateEventForm, type EventFormValues } from "./validateEventForm";
 
 const base: EventFormValues = {
   title: "Meeting",
+  allDay: false,
+  date: "2026-08-10",
   startAt: "2026-08-10T10:00",
   endAt: "2026-08-10T11:00",
   recurrenceEnabled: false,
@@ -37,4 +39,10 @@ it("requires a positive integer interval when recurrence is enabled", () => {
 
 it("does not validate interval when recurrence is disabled", () => {
   expect(validateEventForm({ ...base, recurrenceEnabled: false, interval: "abc" })).toEqual({});
+});
+
+it("requires a date when all-day is enabled, and ignores start/end time fields", () => {
+  const allDayValues = { ...base, allDay: true, date: "", startAt: "", endAt: "" };
+  expect(validateEventForm(allDayValues)).toHaveProperty("date");
+  expect(validateEventForm({ ...allDayValues, date: "2026-08-10" })).toEqual({});
 });
