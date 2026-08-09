@@ -14,8 +14,15 @@ export function MonthView({ month, onSelectEvent }: Props) {
   const eventsByDay = new Map<string, CalendarEvent[]>();
   for (const event of events) {
     const key = toDateKey(new Date(event.start_at));
-    eventsByDay.set(key, [...(eventsByDay.get(key) ?? []), event]);
+    const bucket = eventsByDay.get(key);
+    if (bucket) {
+      bucket.push(event);
+    } else {
+      eventsByDay.set(key, [event]);
+    }
   }
+
+  const today = new Date();
 
   return (
     <div>
@@ -24,7 +31,7 @@ export function MonthView({ month, onSelectEvent }: Props) {
         {days.map((day) => {
           const key = toDateKey(day);
           return (
-            <div key={key} className={isSameDay(day, month) ? "bg-blue-50" : ""}>
+            <div key={key} data-date-key={key} className={isSameDay(day, today) ? "bg-blue-50" : ""}>
               <div>{day.getDate()}</div>
               {(eventsByDay.get(key) ?? []).map((event) => (
                 <button key={`${event.id}-${event.start_at}`} onClick={() => onSelectEvent(event)}>

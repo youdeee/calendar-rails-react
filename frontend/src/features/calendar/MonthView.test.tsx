@@ -1,18 +1,20 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MonthView } from "./MonthView";
+import { toDateKey } from "./dateUtils";
 
-function renderMonthView() {
+function renderMonthView(month = new Date(2026, 7, 1)) {
   const queryClient = new QueryClient();
   render(
     <QueryClientProvider client={queryClient}>
-      <MonthView month={new Date(2026, 7, 1)} onSelectEvent={vi.fn()} />
+      <MonthView month={month} onSelectEvent={vi.fn()} />
     </QueryClientProvider>
   );
 }
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("[]", { status: 200 })));
 });
 
 it("renders events on their day and marks recurring events", async () => {
@@ -40,4 +42,23 @@ it("renders events on their day and marks recurring events", async () => {
   await waitFor(() => screen.getByText("Lunch"));
   expect(screen.getByText("Lunch").closest("button")).not.toHaveTextContent("(繰り返し)");
   expect(screen.getByText("Standup").closest("button")).toHaveTextContent("(繰り返し)");
+});
+
+it("highlights today's cell, not the first day of the displayed month", async () => {
+  const today = new Date(2026, 7, 20);
+  vi.useFakeTimers();
+  vi.setSystemTime(today);
+
+  const { container } = render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MonthView month={new Date(2026, 7, 1)} onSelectEvent={vi.fn()} />
+    </QueryClientProvider>
+  );
+
+  const highlighted = container.querySelector(`[data-date-key="${toDateKey(today)}"]`);
+  expect(highlighted).toHaveClass("bg-blue-50");
+  const firstOfMonth = container.querySelector(`[data-date-key="2026-08-01"]`);
+  expect(firstOfMonth).not.toHaveClass("bg-blue-50");
+
+  vi.useRealTimers();
 });
