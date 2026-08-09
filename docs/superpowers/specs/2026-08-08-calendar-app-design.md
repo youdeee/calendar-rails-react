@@ -12,7 +12,7 @@ Rails求人の傾向を調査した結果、企業規模・フロントエンド
 
 ## 全体アーキテクチャ
 
-- **バックエンド**: `backend/` — Rails 7, `--api` モードで新規作成
+- **バックエンド**: `backend/` — Rails 8, `--api` モードで新規作成
 - **フロントエンド**: `frontend/` — Vite + React + TypeScript
 - **開発時**: Vite dev server (`:5173`) のproxy機能で `/api/*` をRails (`:3000`) に転送
 - **本番**: JWT認証採用により同一オリジン制約がないため、フロントエンドは静的ホスティング(Vercel/Netlify等)、APIはRailsホスティング(Render/Fly.io等)に分けて配置可能。CORSはoriginの許可リストのみで足り、`credentials: true` は不要

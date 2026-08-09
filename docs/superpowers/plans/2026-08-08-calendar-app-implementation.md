@@ -4,13 +4,13 @@
 
 **Goal:** Google Calendarライクなカレンダーアプリを、Rails APIモード(バックエンド) + Vite/React/TypeScript(フロントエンド)の分離構成で構築する。
 
-**Architecture:** `backend/`にRails 7 APIモード、`frontend/`にVite+React+TypeScriptを別々に用意する。認証はGoogle IDトークン検証 → JWTアクセストークン(メモリ保持,15分)+ リフレッシュトークン(httpOnly Cookie, DB管理, 30日, ローテーション)。開発時はViteのdev server proxyで`/api/*`をRailsに転送する。
+**Architecture:** `backend/`にRails 8 APIモード、`frontend/`にVite+React+TypeScriptを別々に用意する。認証はGoogle IDトークン検証 → JWTアクセストークン(メモリ保持,15分)+ リフレッシュトークン(httpOnly Cookie, DB管理, 30日, ローテーション)。開発時はViteのdev server proxyで`/api/*`をRailsに転送する。
 
-**Tech Stack:** Rails 7 (API mode, SQLite3), RSpec, `jwt` gem, `googleauth` gem, `ice_cube` gem, `rack-attack`, `rack-cors` / Vite, React, TypeScript, TanStack Query, Tailwind CSS, `@dnd-kit/core`, Vitest + React Testing Library
+**Tech Stack:** Rails 8 (API mode, SQLite3), RSpec, `jwt` gem, `googleauth` gem, `ice_cube` gem, `rack-attack`, `rack-cors` / Vite, React, TypeScript, TanStack Query, Tailwind CSS, `@dnd-kit/core`, Vitest + React Testing Library
 
 ## Global Constraints
 
-- Rails 7、`--api`モードで新規作成。DBはSQLite3(学習用ポートフォリオのためセットアップを軽くする)
+- Rails 8、`--api`モードで新規作成。DBはSQLite3(学習用ポートフォリオのためセットアップを軽くする)
 - ルーティングライブラリは使わない(月/週/日切り替えはローカルstate)
 - データ取得/CacheはTanStack Query、スタイリングはTailwind CSS、DnDは`@dnd-kit/core`
 - JWTアクセストークン: HS256固定、有効期限15分、フロントはメモリ保持のみ(localStorage/sessionStorageに保存しない)
