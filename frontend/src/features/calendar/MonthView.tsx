@@ -1,7 +1,16 @@
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { getMonthGridDays, isSameDay, toDateKey } from "./dateUtils";
 import { computeDroppedDates } from "./dragDrop";
 import { groupEventsByDay } from "./groupEventsByDay";
+import { EventLabel } from "./EventButton";
 import { useEvents, useUpdateEvent } from "../events/hooks";
 import type { CalendarEvent } from "../events/api";
 
@@ -19,8 +28,7 @@ function EventChip({ event, onSelectEvent }: { event: CalendarEvent; onSelectEve
 
   return (
     <button ref={setNodeRef} {...listeners} {...attributes} onClick={() => onSelectEvent(event)}>
-      {event.title}
-      {event.recurring && <span> (繰り返し)</span>}
+      <EventLabel event={event} />
     </button>
   );
 }
@@ -55,6 +63,9 @@ export function MonthView({ month, onSelectEvent }: Props) {
   const updateEvent = useUpdateEvent();
   const eventsByDay = groupEventsByDay(events);
   const today = new Date();
+  // Without a movement threshold, PointerSensor activates a drag on plain
+  // pointerdown and swallows the resulting click, breaking click-to-open.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over) return;
@@ -71,7 +82,8 @@ export function MonthView({ month, onSelectEvent }: Props) {
   return (
     <div>
       {isError && <p role="alert">予定の取得に失敗しました</p>}
-      <DndContext onDragEnd={handleDragEnd}>
+      {updateEvent.isError && <p role="alert">予定の更新に失敗しました</p>}
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-7">
           {days.map((day) => {
             const key = toDateKey(day);
