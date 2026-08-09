@@ -25,6 +25,13 @@ class EventsController < ApplicationController
     render json: occurrences
   end
 
+  def create
+    event = current_user.events.new(event_params)
+    apply_recurrence(event)
+    event.save!
+    render json: serialize_event(event), status: :created
+  end
+
   private
 
   def parse_date!(value)
@@ -45,6 +52,42 @@ class EventsController < ApplicationController
       recurring: event.recurring?,
       start_at: occurrence_start.iso8601,
       end_at: (occurrence_start + duration).iso8601
+    }
+  end
+
+  def event_params
+    params.require(:event).permit(:title, :description, :start_at, :end_at, :all_day)
+  end
+
+  def recurrence_input
+    params.dig(:event, :recurrence)&.permit(:frequency, :interval, :until)
+  end
+
+  def apply_recurrence(event)
+    return unless params[:event]&.key?(:recurrence)
+
+    input = recurrence_input
+    event.recurrence_params = input.present? ? build_recurrence_params(input) : nil
+  end
+
+  def build_recurrence_params(input)
+    {
+      "frequency" => input[:frequency],
+      "interval" => input[:interval].to_i,
+      "until" => input[:until].presence
+    }.compact
+  end
+
+  def serialize_event(event)
+    {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      start_at: event.start_at.iso8601,
+      end_at: event.end_at.iso8601,
+      all_day: event.all_day,
+      recurring: event.recurring?,
+      recurrence: event.recurrence_params
     }
   end
 end
