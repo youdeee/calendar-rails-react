@@ -48,7 +48,10 @@ class AuthController < ApplicationController
       value: raw_token,
       httponly: true,
       secure: Rails.env.production?,
-      same_site: :strict,
+      # Frontend (Netlify/Vercel) and API are deployed on different registrable
+      # domains, so a cross-site fetch never attaches a Strict/Lax cookie.
+      # :none requires Secure, which force_ssl already guarantees in production.
+      same_site: Rails.env.production? ? :none : :strict,
       path: REFRESH_COOKIE_PATH,
       expires: RefreshToken::EXPIRY.from_now
     }

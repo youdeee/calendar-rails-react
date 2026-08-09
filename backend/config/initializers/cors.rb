@@ -1,6 +1,6 @@
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins ENV.fetch("FRONTEND_ORIGIN", "http://localhost:5173")
+    origins Rails.env.production? ? ENV.fetch("FRONTEND_ORIGIN") : ENV.fetch("FRONTEND_ORIGIN", "http://localhost:5173")
 
     resource "/api/auth/*",
       headers: :any,
