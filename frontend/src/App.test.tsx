@@ -10,5 +10,6 @@ it("shows a loading state and then resolves to the logged-out view", async () =>
   render(<App />);
 
   expect(screen.getByText("Loading...")).toBeInTheDocument();
-  await waitFor(() => expect(screen.queryByText("Loading...")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.getByTestId("google-login-button")).toBeInTheDocument());
+  expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
 });

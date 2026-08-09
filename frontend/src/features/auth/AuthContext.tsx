@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiFetch, apiRequest, setAccessToken, setUnauthorizedHandler } from "../../api/client";
 
 export type User = { id: number; email: string; name: string; avatar_url: string | null };
@@ -16,32 +16,45 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
+  // StrictMode mounts effects twice in development; without this guard, two
+  // concurrent restoreSession() calls would both submit the same single-use
+  // refresh token, and the loser's 401 could flip a valid session back to
+  // "unauthenticated".
+  const restoreStartedRef = useRef(false);
 
-  useEffect(() => {
-    setUnauthorizedHandler(clearSession);
-    void restoreSession();
-    return () => setUnauthorizedHandler(null);
-  }, []);
-
-  function clearSession() {
+  const clearSession = useCallback(() => {
     setAccessToken(null);
     setUser(null);
     setStatus("unauthenticated");
-  }
+  }, []);
 
-  async function restoreSession() {
-    const response = await apiFetch("/api/auth/refresh", { method: "POST" });
-    if (!response.ok) {
+  const restoreSession = useCallback(async () => {
+    try {
+      const response = await apiFetch("/api/auth/refresh", { method: "POST" });
+      if (!response.ok) {
+        setStatus("unauthenticated");
+        return;
+      }
+      const body = await response.json();
+      setAccessToken(body.access_token);
+      setUser(body.user);
+      setStatus("authenticated");
+    } catch (error) {
+      console.error("Failed to restore session:", error);
       setStatus("unauthenticated");
-      return;
     }
-    const body = await response.json();
-    setAccessToken(body.access_token);
-    setUser(body.user);
-    setStatus("authenticated");
-  }
+  }, []);
 
-  async function loginWithGoogleIdToken(idToken: string) {
+  useEffect(() => {
+    setUnauthorizedHandler(clearSession);
+    if (!restoreStartedRef.current) {
+      restoreStartedRef.current = true;
+      void restoreSession();
+    }
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession, restoreSession]);
+
+  const loginWithGoogleIdToken = useCallback(async (idToken: string) => {
     const body = await apiRequest<{ access_token: string; user: User }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ id_token: idToken }),
@@ -49,12 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(body.access_token);
     setUser(body.user);
     setStatus("authenticated");
-  }
+  }, []);
 
-  async function logout() {
-    await apiFetch("/api/auth/logout", { method: "DELETE" });
-    clearSession();
-  }
+  const logout = useCallback(async () => {
+    try {
+      await apiFetch("/api/auth/logout", { method: "DELETE" });
+    } catch (error) {
+      console.error("Failed to notify the server about logout:", error);
+    } finally {
+      clearSession();
+    }
+  }, [clearSession]);
 
   return (
     <AuthContext.Provider value={{ user, status, loginWithGoogleIdToken, logout }}>{children}</AuthContext.Provider>
