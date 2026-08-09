@@ -79,3 +79,35 @@ it("shows a day-level label when switching to day view", async () => {
 
   await screen.findByText(`${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`);
 });
+
+it("marks the active view button with aria-pressed", async () => {
+  renderCalendarPage();
+  const today = new Date();
+  await screen.findByText(monthLabel(today));
+
+  expect(screen.getByRole("button", { name: "月" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "週" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("button", { name: "日" })).toHaveAttribute("aria-pressed", "false");
+
+  fireEvent.click(screen.getByRole("button", { name: "週" }));
+
+  expect(screen.getByRole("button", { name: "月" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("button", { name: "週" })).toHaveAttribute("aria-pressed", "true");
+});
+
+it("opens the create-event modal defaulting to the currently navigated-to date, not today", async () => {
+  renderCalendarPage();
+  const today = new Date();
+  await screen.findByText(monthLabel(today));
+
+  fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  await screen.findByText(monthLabel(nextMonth));
+
+  fireEvent.click(screen.getByRole("button", { name: "予定を追加" }));
+
+  const dateKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-${String(
+    nextMonth.getDate()
+  ).padStart(2, "0")}`;
+  expect(await screen.findByLabelText("日付")).toHaveValue(dateKey);
+});

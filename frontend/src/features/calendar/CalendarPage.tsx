@@ -78,6 +78,7 @@ export function CalendarPage() {
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
+              aria-pressed={viewMode === mode}
               className={`rounded px-3 py-1.5 text-sm ${
                 viewMode === mode ? "bg-blue-100 text-brand" : "hover:bg-gray-100"
               }`}

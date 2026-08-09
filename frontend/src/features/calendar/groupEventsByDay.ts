@@ -12,5 +12,8 @@ export function groupEventsByDay(events: CalendarEvent[]): Map<string, CalendarE
       eventsByDay.set(key, [event]);
     }
   }
+  for (const bucket of eventsByDay.values()) {
+    bucket.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+  }
   return eventsByDay;
 }
