@@ -9,7 +9,7 @@ type ViewMode = "month" | "week" | "day";
 
 export function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [currentDate] = useState(new Date());
+  const [currentDate] = useState(() => new Date());
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
 

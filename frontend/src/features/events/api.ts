@@ -23,6 +23,14 @@ export type EventInput = {
 };
 
 export function fetchEvents(from: Date, to: Date): Promise<CalendarEvent[]> {
+  // Callers pass whatever time-of-day their `from`/`to` Dates happen to carry
+  // (e.g. CalendarPage seeds "today" from `new Date()`, keeping the current
+  // wall-clock time). The backend compares against these instants directly
+  // (end_at >= from) with no truncation, so without normalizing here, events
+  // earlier in the day than the moment the page loaded would be silently
+  // dropped. Widen to the full local day on both ends.
+  const rangeStart = new Date(from);
+  rangeStart.setHours(0, 0, 0, 0);
   // The backend extends `to` through the end of its own calendar day, but it
   // does so in UTC. Sending local midnight for `to` lands on the PREVIOUS
   // UTC calendar day for zones ahead of UTC (e.g. JST), truncating the
@@ -31,7 +39,7 @@ export function fetchEvents(from: Date, to: Date): Promise<CalendarEvent[]> {
   // the whole intended local day.
   const rangeEnd = new Date(to);
   rangeEnd.setHours(23, 59, 59, 999);
-  const params = new URLSearchParams({ from: from.toISOString(), to: rangeEnd.toISOString() });
+  const params = new URLSearchParams({ from: rangeStart.toISOString(), to: rangeEnd.toISOString() });
   return apiRequest<CalendarEvent[]>(`/api/events?${params.toString()}`);
 }
 
