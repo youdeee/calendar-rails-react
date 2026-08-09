@@ -124,5 +124,25 @@ RSpec.describe "Events", type: :request do
 
       expect(response).to have_http_status(:unauthorized)
     end
+
+    it "returns 400 when recurrence is not an object" do
+      post "/api/events", params: {
+        event: { title: "Lunch", start_at: "2026-08-10T12:00:00+09:00", end_at: "2026-08-10T13:00:00+09:00",
+                 recurrence: "not-a-hash" }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:bad_request)
+    end
+
+    it "rejects an invalid recurrence until date with 422" do
+      post "/api/events", params: {
+        event: {
+          title: "Bad until", start_at: "2026-08-03T10:00:00+09:00", end_at: "2026-08-03T10:15:00+09:00",
+          recurrence: { frequency: "weekly", interval: "1", until: "not-a-date" }
+        }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
   end
 end

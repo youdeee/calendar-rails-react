@@ -76,7 +76,18 @@ class Event < ApplicationRecord
     unless interval.is_a?(Integer) && interval.positive?
       errors.add(:recurrence_rule, "interval must be a positive integer")
     end
+
+    if params["until"].present? && !valid_date_string?(params["until"])
+      errors.add(:recurrence_rule, "until must be a valid date")
+    end
   rescue JSON::ParserError
     errors.add(:recurrence_rule, "is not valid JSON")
+  end
+
+  def valid_date_string?(value)
+    Date.parse(value.to_s)
+    true
+  rescue ArgumentError, TypeError
+    false
   end
 end
