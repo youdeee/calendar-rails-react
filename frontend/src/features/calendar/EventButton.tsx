@@ -8,16 +8,3 @@ export function EventLabel({ event }: { event: CalendarEvent }) {
     </>
   );
 }
-
-type Props = {
-  event: CalendarEvent;
-  onSelect: (event: CalendarEvent) => void;
-};
-
-export function EventButton({ event, onSelect }: Props) {
-  return (
-    <button onClick={() => onSelect(event)}>
-      <EventLabel event={event} />
-    </button>
-  );
-}
