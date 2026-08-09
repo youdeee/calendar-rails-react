@@ -1,4 +1,4 @@
-import { getMonthGridDays, getWeekDays, isSameDay, toDateKey } from "./dateUtils";
+import { getMonthGridDays, getWeekDays, isSameDay, toDateKey, addDays, addWeeks, addMonths } from "./dateUtils";
 
 it("returns 42 days", () => {
   expect(getMonthGridDays(new Date(2026, 7, 15))).toHaveLength(42);
@@ -38,5 +38,48 @@ describe("getWeekDays", () => {
     expect(days).toHaveLength(7);
     expect(days[0].getDay()).toBe(0);
     expect(days[6].getDay()).toBe(6);
+  });
+});
+
+describe("addDays", () => {
+  it("adds the given number of days", () => {
+    expect(toDateKey(addDays(new Date(2026, 7, 10), 3))).toBe("2026-08-13");
+  });
+
+  it("subtracts days for a negative amount", () => {
+    expect(toDateKey(addDays(new Date(2026, 7, 10), -3))).toBe("2026-08-07");
+  });
+
+  it("rolls over into the next month", () => {
+    expect(toDateKey(addDays(new Date(2026, 7, 30), 3))).toBe("2026-09-02");
+  });
+});
+
+describe("addWeeks", () => {
+  it("adds 7 days per week", () => {
+    expect(toDateKey(addWeeks(new Date(2026, 7, 10), 1))).toBe("2026-08-17");
+  });
+
+  it("subtracts weeks for a negative amount", () => {
+    expect(toDateKey(addWeeks(new Date(2026, 7, 10), -1))).toBe("2026-08-03");
+  });
+});
+
+describe("addMonths", () => {
+  it("adds months, keeping the same day of month", () => {
+    expect(toDateKey(addMonths(new Date(2026, 7, 10), 1))).toBe("2026-09-10");
+  });
+
+  it("subtracts months for a negative amount", () => {
+    expect(toDateKey(addMonths(new Date(2026, 7, 10), -1))).toBe("2026-07-10");
+  });
+
+  it("rolls over the year when crossing December", () => {
+    expect(toDateKey(addMonths(new Date(2026, 11, 15), 1))).toBe("2027-01-15");
+  });
+
+  it("clamps to the last day of the target month instead of overflowing", () => {
+    // Jan 31 + 1 month must land on Feb 28 (2026 is not a leap year), not Mar 3
+    expect(toDateKey(addMonths(new Date(2026, 0, 31), 1))).toBe("2026-02-28");
   });
 });

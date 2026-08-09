@@ -39,3 +39,21 @@ export function getWeekDays(date: Date): Date[] {
     return d;
   });
 }
+
+export function addDays(date: Date, amount: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + amount);
+  return result;
+}
+
+export function addWeeks(date: Date, amount: number): Date {
+  return addDays(date, amount * 7);
+}
+
+export function addMonths(date: Date, amount: number): Date {
+  const day = date.getDate();
+  const result = new Date(date.getFullYear(), date.getMonth() + amount, 1);
+  const daysInTargetMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(day, daysInTargetMonth));
+  return result;
+}
