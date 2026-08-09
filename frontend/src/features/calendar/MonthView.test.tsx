@@ -92,3 +92,23 @@ it("highlights today's cell, not the first day of the displayed month", async ()
 
   vi.useRealTimers();
 });
+
+it("caps events at 3 per day and shows an overflow count", async () => {
+  const events = Array.from({ length: 5 }, (_, i) => ({
+    id: i + 1,
+    title: `Event ${i + 1}`,
+    description: null,
+    start_at: "2026-08-10T09:00:00+09:00",
+    end_at: "2026-08-10T10:00:00+09:00",
+    all_day: false,
+    recurring: false,
+  }));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(events), { status: 200 })));
+
+  renderMonthView();
+
+  await waitFor(() => screen.getByText("Event 1"));
+  expect(screen.getByText("Event 3")).toBeInTheDocument();
+  expect(screen.queryByText("Event 4")).not.toBeInTheDocument();
+  expect(screen.getByText("+2件")).toBeInTheDocument();
+});
