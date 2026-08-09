@@ -27,17 +27,13 @@ class EventsController < ApplicationController
 
   def create
     event = current_user.events.new(event_params)
-    apply_recurrence(event)
-    event.save!
-    render json: serialize_event(event), status: :created
+    persist_event(event, status: :created)
   end
 
   def update
     event = current_user.events.find(params[:id])
     event.assign_attributes(event_params)
-    apply_recurrence(event)
-    event.save!
-    render json: serialize_event(event)
+    persist_event(event, status: :ok)
   end
 
   def destroy
@@ -46,6 +42,12 @@ class EventsController < ApplicationController
   end
 
   private
+
+  def persist_event(event, status:)
+    apply_recurrence(event)
+    event.save!
+    render json: serialize_event(event), status: status
+  end
 
   def parse_date!(value)
     parsed = Time.zone.parse(value.to_s)

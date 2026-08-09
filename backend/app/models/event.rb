@@ -23,6 +23,11 @@ class Event < ApplicationRecord
     @recurrence_params ||= JSON.parse(recurrence_rule)
   end
 
+  def reload(...)
+    @recurrence_params = nil
+    super
+  end
+
   def recurring?
     recurrence_rule.present?
   end
