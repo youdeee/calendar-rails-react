@@ -13,6 +13,8 @@ Rails.application.routes.draw do
       post "refresh", to: "/auth#refresh"
       delete "logout", to: "/auth#logout"
     end
+
+    resources :events, controller: "/events", only: %i[index create update destroy]
   end
 
   # Defines the root path route ("/")

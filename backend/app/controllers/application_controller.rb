@@ -3,6 +3,7 @@ class ApplicationController < ActionController::API
 
   rescue_from StandardError, with: :render_server_error
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
+  rescue_from ActionController::BadRequest, with: :render_bad_request
   rescue_from Unauthorized, with: :render_unauthorized
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable
