@@ -60,3 +60,11 @@ it("rejects an unparsable end_at value instead of letting it reach submit", () =
   expect(errors).toHaveProperty("endAt");
   expect(errors.startAt).toBeUndefined();
 });
+
+it("rejects an unparsable all-day date instead of letting it reach submit", () => {
+  // Reproduces: clear 日付 while all-day, uncheck 終日 (date stays ""), then
+  // re-check 終日 — handleAllDayToggle adopts startAt ("T09:00") into date,
+  // which is not a parsable date.
+  const errors = validateEventForm({ ...base, allDay: true, date: "T09:00" });
+  expect(errors).toHaveProperty("date");
+});

@@ -23,6 +23,7 @@ export function validateEventForm(values: EventFormValues): EventFormErrors {
 
   if (values.allDay) {
     if (!values.date) errors.date = "日付を入力してください";
+    else if (Number.isNaN(new Date(values.date).getTime())) errors.date = "日付が不正です";
   } else {
     if (!values.startAt) errors.startAt = "開始日時を入力してください";
     else if (Number.isNaN(new Date(values.startAt).getTime())) errors.startAt = "開始日時が不正です";
