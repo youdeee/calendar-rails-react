@@ -170,6 +170,32 @@ it("opens an existing timed event with its own time fields, ignoring the all-day
   expect(screen.getByLabelText("開始日時")).toHaveValue(localStart);
 });
 
+it("does not overwrite the end time when only the start time of an existing timed event is changed", () => {
+  const event: CalendarEvent = {
+    id: 1,
+    title: "Meeting",
+    description: null,
+    start_at: "2026-08-10T10:00:00Z",
+    end_at: "2026-08-10T12:00:00Z",
+    all_day: false,
+    recurring: false,
+    recurrence: null,
+  };
+  renderModal(vi.fn(), event);
+
+  // Represent local wall-clock values in the "local-as-UTC" domain (offset already
+  // subtracted), matching how the component derives datetime-local field values, so
+  // the computed strings are correct regardless of the test runner's timezone.
+  const offsetMinutes = new Date(event.start_at).getTimezoneOffset();
+  const localStart = new Date(new Date(event.start_at).getTime() - offsetMinutes * 60000);
+  const localEnd = new Date(new Date(event.end_at).getTime() - offsetMinutes * 60000);
+  const newStartValue = new Date(localStart.getTime() - 60 * 60000).toISOString().slice(0, 16);
+
+  fireEvent.change(screen.getByLabelText("開始日時"), { target: { value: newStartValue } });
+
+  expect(screen.getByLabelText("終了日時")).toHaveValue(localEnd.toISOString().slice(0, 16));
+});
+
 it("opens an existing all-day event with the all-day toggle on", () => {
   const event: CalendarEvent = {
     id: 1,
