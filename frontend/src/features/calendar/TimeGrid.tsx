@@ -1,5 +1,5 @@
 import { toDateKey, isSameDay } from "./dateUtils";
-import { layoutTimedEvent } from "./timeGridLayout";
+import { layoutTimedEvent, assignEventColumns } from "./timeGridLayout";
 import { EventLabel } from "./EventButton";
 import type { CalendarEvent } from "../events/api";
 
@@ -95,14 +95,20 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent }: Props) {
                 <div key={hour} className="border-b border-gray-100" style={{ height: `${HOUR_ROW_HEIGHT_PX}px` }} />
               ))}
               {isSameDay(day, today) && <CurrentTimeLine />}
-              {timedEvents.map((event) => {
+              {assignEventColumns(timedEvents, day).map(({ event, column, columnCount }) => {
                 const { topPercent, heightPercent } = layoutTimedEvent(event, day);
+                const widthPercent = 100 / columnCount;
                 return (
                   <button
                     key={`${event.id}-${event.start_at}`}
                     onClick={() => onSelectEvent(event)}
-                    className="absolute left-1 right-1 overflow-hidden rounded bg-brand px-1.5 py-0.5 text-left text-xs text-white"
-                    style={{ top: `${topPercent}%`, height: `${heightPercent}%` }}
+                    className="absolute overflow-hidden rounded bg-brand px-1.5 py-0.5 text-left text-xs text-white"
+                    style={{
+                      top: `${topPercent}%`,
+                      height: `${heightPercent}%`,
+                      left: `${column * widthPercent}%`,
+                      width: `${widthPercent}%`,
+                    }}
                   >
                     <EventLabel event={event} />
                   </button>
