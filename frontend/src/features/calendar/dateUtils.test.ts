@@ -1,4 +1,4 @@
-import { getMonthGridDays, isSameDay, toDateKey } from "./dateUtils";
+import { getMonthGridDays, getWeekDays, isSameDay, toDateKey } from "./dateUtils";
 
 it("returns 42 days", () => {
   expect(getMonthGridDays(new Date(2026, 7, 15))).toHaveLength(42);
@@ -29,5 +29,14 @@ describe("isSameDay", () => {
 describe("toDateKey", () => {
   it("formats as YYYY-MM-DD using local date parts", () => {
     expect(toDateKey(new Date(2026, 7, 10))).toBe("2026-08-10");
+  });
+});
+
+describe("getWeekDays", () => {
+  it("returns 7 consecutive days starting on Sunday", () => {
+    const days = getWeekDays(new Date(2026, 7, 12));
+    expect(days).toHaveLength(7);
+    expect(days[0].getDay()).toBe(0);
+    expect(days[6].getDay()).toBe(6);
   });
 });

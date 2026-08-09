@@ -24,3 +24,18 @@ export function toDateKey(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+export function startOfWeek(date: Date): Date {
+  const start = new Date(date);
+  start.setDate(date.getDate() - date.getDay());
+  return start;
+}
+
+export function getWeekDays(date: Date): Date[] {
+  const start = startOfWeek(date);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+}
