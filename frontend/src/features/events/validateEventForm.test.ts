@@ -26,6 +26,10 @@ it("requires end_at to be after start_at", () => {
   expect(validateEventForm({ ...base, endAt: "2026-08-10T09:00" })).toHaveProperty("endAt");
 });
 
+it("rejects end_at equal to start_at, matching the backend's strict inequality", () => {
+  expect(validateEventForm({ ...base, endAt: base.startAt })).toHaveProperty("endAt");
+});
+
 it("requires a positive integer interval when recurrence is enabled", () => {
   expect(validateEventForm({ ...base, recurrenceEnabled: true, interval: "0" })).toHaveProperty("interval");
   expect(validateEventForm({ ...base, recurrenceEnabled: true, interval: "abc" })).toHaveProperty("interval");

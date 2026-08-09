@@ -8,26 +8,22 @@ export function useEvents(from: Date, to: Date) {
   });
 }
 
-export function useCreateEvent() {
+function useEventMutation<TArgs, TResult>(mutationFn: (args: TArgs) => Promise<TResult>) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: EventInput) => createEvent(input),
+    mutationFn,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["events"] }),
   });
+}
+
+export function useCreateEvent() {
+  return useEventMutation(createEvent);
 }
 
 export function useUpdateEvent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: number; input: Partial<EventInput> }) => updateEvent(id, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["events"] }),
-  });
+  return useEventMutation(({ id, input }: { id: number; input: Partial<EventInput> }) => updateEvent(id, input));
 }
 
 export function useDeleteEvent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => deleteEvent(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["events"] }),
-  });
+  return useEventMutation(deleteEvent);
 }
