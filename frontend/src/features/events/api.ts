@@ -23,7 +23,15 @@ export type EventInput = {
 };
 
 export function fetchEvents(from: Date, to: Date): Promise<CalendarEvent[]> {
-  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  // The backend extends `to` through the end of its own calendar day, but it
+  // does so in UTC. Sending local midnight for `to` lands on the PREVIOUS
+  // UTC calendar day for zones ahead of UTC (e.g. JST), truncating the
+  // range hours early and silently dropping events on the last day shown.
+  // Send local end-of-day instead so the UTC day it falls on always covers
+  // the whole intended local day.
+  const rangeEnd = new Date(to);
+  rangeEnd.setHours(23, 59, 59, 999);
+  const params = new URLSearchParams({ from: from.toISOString(), to: rangeEnd.toISOString() });
   return apiRequest<CalendarEvent[]>(`/api/events?${params.toString()}`);
 }
 
