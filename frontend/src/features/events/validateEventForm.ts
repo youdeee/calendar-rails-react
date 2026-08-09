@@ -21,7 +21,7 @@ export function validateEventForm(values: EventFormValues): EventFormErrors {
 
   if (!values.startAt) errors.startAt = "開始日時を入力してください";
   if (!values.endAt) errors.endAt = "終了日時を入力してください";
-  if (values.startAt && values.endAt && new Date(values.endAt) < new Date(values.startAt)) {
+  if (values.startAt && values.endAt && new Date(values.endAt) <= new Date(values.startAt)) {
     errors.endAt = "終了日時は開始日時より後にしてください";
   }
 
