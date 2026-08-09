@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { useCreateEvent, useUpdateEvent } from "./hooks";
 import { validateEventForm, type EventFormValues, type EventFormErrors } from "./validateEventForm";
+import { toDateKey } from "../calendar/dateUtils";
 import type { CalendarEvent, RecurrenceParams } from "./api";
 
 type Props = {
   event?: CalendarEvent;
+  defaultDate: Date;
   onClose: () => void;
 };
 
@@ -17,27 +19,84 @@ function toDatetimeLocalValue(isoString: string): string {
   return localDate.toISOString().slice(0, 16);
 }
 
-function toFormValues(event?: CalendarEvent): EventFormValues {
+function addHours(datetimeLocalValue: string, hours: number): string {
+  const date = new Date(datetimeLocalValue);
+  date.setHours(date.getHours() + hours);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function dateOnlyToRange(dateStr: string): { start_at: string; end_at: string } {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const start = new Date(year, month - 1, day);
+  const end = new Date(year, month - 1, day + 1);
+  return { start_at: start.toISOString(), end_at: end.toISOString() };
+}
+
+function toFormValues(event: CalendarEvent | undefined, defaultDate: Date): EventFormValues {
+  if (!event) {
+    return {
+      title: "",
+      allDay: true,
+      date: toDateKey(defaultDate),
+      startAt: "",
+      endAt: "",
+      recurrenceEnabled: false,
+      frequency: "weekly",
+      interval: "1",
+      until: "",
+    };
+  }
+
   return {
-    title: event?.title ?? "",
-    startAt: event ? toDatetimeLocalValue(event.start_at) : "",
-    endAt: event ? toDatetimeLocalValue(event.end_at) : "",
-    recurrenceEnabled: Boolean(event?.recurrence),
-    frequency: event?.recurrence?.frequency ?? "weekly",
-    interval: String(event?.recurrence?.interval ?? 1),
-    until: event?.recurrence?.until ?? "",
+    title: event.title,
+    allDay: event.all_day,
+    date: toDateKey(new Date(event.start_at)),
+    startAt: event.all_day ? "" : toDatetimeLocalValue(event.start_at),
+    endAt: event.all_day ? "" : toDatetimeLocalValue(event.end_at),
+    recurrenceEnabled: Boolean(event.recurrence),
+    frequency: event.recurrence?.frequency ?? "weekly",
+    interval: String(event.recurrence?.interval ?? 1),
+    until: event.recurrence?.until ?? "",
   };
 }
 
-export function EventFormModal({ event, onClose }: Props) {
-  const [values, setValues] = useState<EventFormValues>(() => toFormValues(event));
+export function EventFormModal({ event, defaultDate, onClose }: Props) {
+  const [values, setValues] = useState<EventFormValues>(() => toFormValues(event, defaultDate));
   const [errors, setErrors] = useState<EventFormErrors>({});
+  const [endAtTouched, setEndAtTouched] = useState(false);
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const errorMessages = Object.values(errors).filter((message): message is string => Boolean(message));
 
   function updateField<K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleStartAtChange(newStartAt: string) {
+    setValues((prev) => {
+      const shouldAutoFillEnd = !endAtTouched || !prev.endAt || new Date(prev.endAt) <= new Date(newStartAt);
+      return {
+        ...prev,
+        startAt: newStartAt,
+        endAt: shouldAutoFillEnd && newStartAt ? addHours(newStartAt, 1) : prev.endAt,
+      };
+    });
+  }
+
+  function handleEndAtChange(newEndAt: string) {
+    setEndAtTouched(true);
+    updateField("endAt", newEndAt);
+  }
+
+  function handleAllDayToggle(checked: boolean) {
+    if (checked) {
+      updateField("allDay", true);
+      return;
+    }
+    const startAt = `${values.date}T09:00`;
+    setEndAtTouched(false);
+    setValues((prev) => ({ ...prev, allDay: false, startAt, endAt: addHours(startAt, 1) }));
   }
 
   function handleSubmit(e: FormEvent) {
@@ -50,12 +109,11 @@ export function EventFormModal({ event, onClose }: Props) {
       ? { frequency: values.frequency, interval: Number(values.interval), until: values.until || null }
       : null;
 
-    const input = {
-      title: values.title,
-      start_at: new Date(values.startAt).toISOString(),
-      end_at: new Date(values.endAt).toISOString(),
-      recurrence,
-    };
+    const { start_at, end_at } = values.allDay
+      ? dateOnlyToRange(values.date)
+      : { start_at: new Date(values.startAt).toISOString(), end_at: new Date(values.endAt).toISOString() };
+
+    const input = { title: values.title, start_at, end_at, all_day: values.allDay, recurrence };
 
     if (event) {
       updateEvent.mutate({ id: event.id, input }, { onSuccess: onClose });
@@ -65,62 +123,113 @@ export function EventFormModal({ event, onClose }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        タイトル
-        <input value={values.title} onChange={(e) => updateField("title", e.target.value)} />
-      </label>
+    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40">
+      <form onSubmit={handleSubmit} className="flex w-full max-w-md flex-col gap-3 rounded-lg bg-white p-6 shadow-lg">
+        <label className="flex flex-col gap-1 text-sm text-gray-700">
+          タイトル
+          <input
+            value={values.title}
+            onChange={(e) => updateField("title", e.target.value)}
+            className="rounded border border-gray-300 px-2 py-1.5"
+          />
+        </label>
 
-      <label>
-        開始日時
-        <input
-          type="datetime-local"
-          value={values.startAt}
-          onChange={(e) => updateField("startAt", e.target.value)}
-        />
-      </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={values.allDay} onChange={(e) => handleAllDayToggle(e.target.checked)} />
+          終日
+        </label>
 
-      <label>
-        終了日時
-        <input type="datetime-local" value={values.endAt} onChange={(e) => updateField("endAt", e.target.value)} />
-      </label>
-
-      <label>
-        繰り返す
-        <input
-          type="checkbox"
-          checked={values.recurrenceEnabled}
-          onChange={(e) => updateField("recurrenceEnabled", e.target.checked)}
-        />
-      </label>
-
-      {values.recurrenceEnabled && (
-        <>
-          <label>
-            頻度
-            <select
-              value={values.frequency}
-              onChange={(e) => updateField("frequency", e.target.value as EventFormValues["frequency"])}
-            >
-              <option value="daily">毎日</option>
-              <option value="weekly">毎週</option>
-              <option value="monthly">毎月</option>
-            </select>
+        {values.allDay ? (
+          <label className="flex flex-col gap-1 text-sm text-gray-700">
+            日付
+            <input
+              type="date"
+              value={values.date}
+              onChange={(e) => updateField("date", e.target.value)}
+              className="rounded border border-gray-300 px-2 py-1.5"
+            />
           </label>
-          <label>
-            間隔
-            <input value={values.interval} onChange={(e) => updateField("interval", e.target.value)} />
-          </label>
-        </>
-      )}
+        ) : (
+          <>
+            <label className="flex flex-col gap-1 text-sm text-gray-700">
+              開始日時
+              <input
+                type="datetime-local"
+                value={values.startAt}
+                onChange={(e) => handleStartAtChange(e.target.value)}
+                className="rounded border border-gray-300 px-2 py-1.5"
+              />
+            </label>
 
-      {errorMessages.length > 0 && <p role="alert">{errorMessages.join(" ")}</p>}
-      {(createEvent.isError || updateEvent.isError) && <p role="alert">保存に失敗しました</p>}
+            <label className="flex flex-col gap-1 text-sm text-gray-700">
+              終了日時
+              <input
+                type="datetime-local"
+                value={values.endAt}
+                onChange={(e) => handleEndAtChange(e.target.value)}
+                className="rounded border border-gray-300 px-2 py-1.5"
+              />
+            </label>
+          </>
+        )}
 
-      <button type="submit">保存</button>
-      <button type="button" onClick={onClose}>
-        キャンセル
-      </button>
-    </form>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={values.recurrenceEnabled}
+            onChange={(e) => updateField("recurrenceEnabled", e.target.checked)}
+          />
+          繰り返す
+        </label>
+
+        {values.recurrenceEnabled && (
+          <>
+            <label className="flex flex-col gap-1 text-sm text-gray-700">
+              頻度
+              <select
+                value={values.frequency}
+                onChange={(e) => updateField("frequency", e.target.value as EventFormValues["frequency"])}
+                className="rounded border border-gray-300 px-2 py-1.5"
+              >
+                <option value="daily">毎日</option>
+                <option value="weekly">毎週</option>
+                <option value="monthly">毎月</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-gray-700">
+              間隔
+              <input
+                value={values.interval}
+                onChange={(e) => updateField("interval", e.target.value)}
+                className="rounded border border-gray-300 px-2 py-1.5"
+              />
+            </label>
+          </>
+        )}
+
+        {errorMessages.length > 0 && (
+          <p role="alert" className="text-sm text-red-600">
+            {errorMessages.join(" ")}
+          </p>
+        )}
+        {(createEvent.isError || updateEvent.isError) && (
+          <p role="alert" className="text-sm text-red-600">
+            保存に失敗しました
+          </p>
+        )}
+
+        <div className="mt-2 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded px-3 py-1.5 text-sm hover:bg-gray-100">
+            キャンセル
+          </button>
+          <button
+            type="submit"
+            className="rounded bg-brand px-4 py-1.5 text-sm font-medium text-white hover:brightness-110"
+          >
+            保存
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
