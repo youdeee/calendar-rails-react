@@ -1,6 +1,6 @@
-import { getWeekDays, toDateKey } from "./dateUtils";
+import { getWeekDays } from "./dateUtils";
 import { groupEventsByDay } from "./groupEventsByDay";
-import { EventButton } from "./EventButton";
+import { TimeGrid } from "./TimeGrid";
 import { useEvents } from "../events/hooks";
 import type { CalendarEvent } from "../events/api";
 
@@ -15,19 +15,9 @@ export function WeekView({ weekStart, onSelectEvent }: Props) {
   const eventsByDay = groupEventsByDay(events);
 
   return (
-    <div className="grid grid-cols-7">
+    <div className="flex h-full flex-col">
       {isError && <p role="alert">予定の取得に失敗しました</p>}
-      {days.map((day) => {
-        const key = toDateKey(day);
-        return (
-          <div key={key}>
-            <div>{day.toLocaleDateString()}</div>
-            {(eventsByDay.get(key) ?? []).map((event) => (
-              <EventButton key={`${event.id}-${event.start_at}`} event={event} onSelect={onSelectEvent} />
-            ))}
-          </div>
-        );
-      })}
+      <TimeGrid days={days} eventsByDay={eventsByDay} onSelectEvent={onSelectEvent} />
     </div>
   );
 }
