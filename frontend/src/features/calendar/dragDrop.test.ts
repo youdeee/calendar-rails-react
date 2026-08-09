@@ -1,4 +1,5 @@
 import { computeDroppedDates } from "./dragDrop";
+import { toDateKey } from "./dateUtils";
 
 it("shifts the date to the drop target while preserving time and duration", () => {
   const originalStart = new Date(2026, 7, 10, 12, 0);
@@ -23,11 +24,5 @@ it("returns null when dropped on the same day", () => {
   const originalStart = new Date(2026, 7, 10, 12, 0);
   const originalEnd = new Date(2026, 7, 10, 13, 0);
   const event = { start_at: originalStart.toISOString(), end_at: originalEnd.toISOString() };
-  const sameDayKey = [
-    originalStart.getFullYear(),
-    String(originalStart.getMonth() + 1).padStart(2, "0"),
-    String(originalStart.getDate()).padStart(2, "0"),
-  ].join("-");
-
-  expect(computeDroppedDates(event, sameDayKey)).toBeNull();
+  expect(computeDroppedDates(event, toDateKey(originalStart))).toBeNull();
 });
