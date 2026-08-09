@@ -156,7 +156,34 @@ RSpec.describe "Events", type: :request do
       }, headers: auth_headers
 
       expect(response).to have_http_status(:ok)
-      expect(event.reload.start_at).to eq(Time.zone.parse("2026-08-11T10:00:00+09:00"))
+      event.reload
+      expect(event.start_at).to eq(Time.zone.parse("2026-08-11T10:00:00+09:00"))
+      expect(event.end_at).to eq(Time.zone.parse("2026-08-11T11:00:00+09:00"))
+    end
+
+    it "updates a recurring event's recurrence params" do
+      event = user.events.create!(title: "Standup", start_at: Time.zone.parse("2026-08-03 10:00"),
+                                   end_at: Time.zone.parse("2026-08-03 10:15"))
+      event.recurrence_params = { "frequency" => "weekly", "interval" => 1 }
+      event.save!
+
+      patch "/api/events/#{event.id}", params: {
+        event: { recurrence: { frequency: "weekly", interval: "2", until: "2026-12-31" } }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(event.reload.recurrence_params).to eq(
+        { "frequency" => "weekly", "interval" => 2, "until" => "2026-12-31" }
+      )
+    end
+
+    it "returns 422 for an invalid update" do
+      event = user.events.create!(title: "Meeting", start_at: Time.zone.parse("2026-08-10 10:00"),
+                                   end_at: Time.zone.parse("2026-08-10 11:00"))
+
+      patch "/api/events/#{event.id}", params: { event: { title: "" } }, headers: auth_headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
     end
 
     it "returns 404 when updating another user's event" do
