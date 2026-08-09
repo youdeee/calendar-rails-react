@@ -44,14 +44,19 @@ class EventsController < ApplicationController
   end
 
   def serialize_occurrence(event, occurrence_start, duration)
+    event_attributes(event).merge(
+      start_at: occurrence_start.iso8601,
+      end_at: (occurrence_start + duration).iso8601
+    )
+  end
+
+  def event_attributes(event)
     {
       id: event.id,
       title: event.title,
       description: event.description,
       all_day: event.all_day,
-      recurring: event.recurring?,
-      start_at: occurrence_start.iso8601,
-      end_at: (occurrence_start + duration).iso8601
+      recurring: event.recurring?
     }
   end
 
@@ -60,7 +65,11 @@ class EventsController < ApplicationController
   end
 
   def recurrence_input
-    params.dig(:event, :recurrence)&.permit(:frequency, :interval, :until)
+    value = params.dig(:event, :recurrence)
+    return nil if value.nil?
+    raise ActionController::BadRequest, "recurrence must be an object" unless value.is_a?(ActionController::Parameters)
+
+    value.permit(:frequency, :interval, :until)
   end
 
   def apply_recurrence(event)
@@ -79,15 +88,10 @@ class EventsController < ApplicationController
   end
 
   def serialize_event(event)
-    {
-      id: event.id,
-      title: event.title,
-      description: event.description,
+    event_attributes(event).merge(
       start_at: event.start_at.iso8601,
       end_at: event.end_at.iso8601,
-      all_day: event.all_day,
-      recurring: event.recurring?,
       recurrence: event.recurrence_params
-    }
+    )
   end
 end
