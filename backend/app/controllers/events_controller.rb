@@ -9,9 +9,10 @@ class EventsController < ApplicationController
     raise ActionController::BadRequest, "to must be after from" if to < from
     raise ActionController::BadRequest, "range too large" if to - from > MAX_RANGE
 
+    to_boundary = to.end_of_day
     candidates = current_user.events.where(
       "(recurrence_rule IS NULL AND start_at <= ? AND end_at >= ?) OR (recurrence_rule IS NOT NULL AND start_at <= ?)",
-      to, from, to
+      to_boundary, from, to_boundary
     )
 
     occurrences = candidates.flat_map do |event|

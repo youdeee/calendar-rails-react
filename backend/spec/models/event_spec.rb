@@ -80,5 +80,11 @@ RSpec.describe Event, type: :model do
       result = event.occurrences_between(Time.zone.parse("2026-08-01"), Time.zone.parse("2026-08-10"))
       expect(result).to eq([])
     end
+
+    it "includes a multi-day event that starts before range_start but overlaps into the range" do
+      event = build_event(start_at: Time.zone.parse("2026-08-05 10:00"), end_at: Time.zone.parse("2026-08-12 10:00"))
+      result = event.occurrences_between(Time.zone.parse("2026-08-10"), Time.zone.parse("2026-08-20"))
+      expect(result).to eq([event.start_at])
+    end
   end
 end

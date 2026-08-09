@@ -48,7 +48,7 @@ class Event < ApplicationRecord
     inclusive_range_end = range_end.end_of_day
 
     unless recurring?
-      return (start_at >= range_start && start_at <= inclusive_range_end) ? [start_at] : []
+      return (start_at <= inclusive_range_end && end_at >= range_start) ? [start_at] : []
     end
 
     schedule = IceCube::Schedule.new(start_at)

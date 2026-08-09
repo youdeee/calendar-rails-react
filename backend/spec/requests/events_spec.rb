@@ -48,6 +48,16 @@ RSpec.describe "Events", type: :request do
       expect(body.all? { |e| e["id"] == event.id && e["recurring"] == true }).to be true
     end
 
+    it "includes an event later in the day than the `to` boundary" do
+      user.events.create!(title: "Evening", start_at: Time.zone.parse("2026-08-31 22:00"),
+                           end_at: Time.zone.parse("2026-08-31 23:00"))
+
+      get "/api/events", params: { from: "2026-08-01", to: "2026-08-31" }, headers: auth_headers
+
+      titles = JSON.parse(response.body).map { |e| e["title"] }
+      expect(titles).to eq(["Evening"])
+    end
+
     it "returns 400 for an invalid date" do
       get "/api/events", params: { from: "not-a-date", to: "2026-08-31" }, headers: auth_headers
 
