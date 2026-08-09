@@ -70,4 +70,59 @@ RSpec.describe "Events", type: :request do
       expect(response).to have_http_status(:bad_request)
     end
   end
+
+  describe "POST /api/events" do
+    it "creates a non-recurring event" do
+      post "/api/events", params: {
+        event: { title: "Lunch", start_at: "2026-08-10T12:00:00+09:00", end_at: "2026-08-10T13:00:00+09:00" }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:created)
+      body = JSON.parse(response.body)
+      expect(body["title"]).to eq("Lunch")
+      expect(body["recurring"]).to eq(false)
+      expect(user.events.count).to eq(1)
+    end
+
+    it "creates a recurring event from structured recurrence params" do
+      post "/api/events", params: {
+        event: {
+          title: "Standup", start_at: "2026-08-03T10:00:00+09:00", end_at: "2026-08-03T10:15:00+09:00",
+          recurrence: { frequency: "weekly", interval: "1", until: "2026-12-31" }
+        }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:created)
+      body = JSON.parse(response.body)
+      expect(body["recurring"]).to eq(true)
+      expect(body["recurrence"]).to eq({ "frequency" => "weekly", "interval" => 1, "until" => "2026-12-31" })
+    end
+
+    it "rejects an invalid recurrence frequency with 422" do
+      post "/api/events", params: {
+        event: {
+          title: "Bad", start_at: "2026-08-03T10:00:00+09:00", end_at: "2026-08-03T10:15:00+09:00",
+          recurrence: { frequency: "yearly", interval: "1" }
+        }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "rejects a title longer than 200 characters with 422" do
+      post "/api/events", params: {
+        event: { title: "a" * 201, start_at: "2026-08-10T12:00:00+09:00", end_at: "2026-08-10T13:00:00+09:00" }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "requires authentication" do
+      post "/api/events", params: {
+        event: { title: "Lunch", start_at: "2026-08-10T12:00:00+09:00", end_at: "2026-08-10T13:00:00+09:00" }
+      }
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
 end
