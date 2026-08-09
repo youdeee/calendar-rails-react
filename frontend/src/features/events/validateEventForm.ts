@@ -25,8 +25,18 @@ export function validateEventForm(values: EventFormValues): EventFormErrors {
     if (!values.date) errors.date = "日付を入力してください";
   } else {
     if (!values.startAt) errors.startAt = "開始日時を入力してください";
+    else if (Number.isNaN(new Date(values.startAt).getTime())) errors.startAt = "開始日時が不正です";
+
     if (!values.endAt) errors.endAt = "終了日時を入力してください";
-    if (values.startAt && values.endAt && new Date(values.endAt) <= new Date(values.startAt)) {
+    else if (Number.isNaN(new Date(values.endAt).getTime())) errors.endAt = "終了日時が不正です";
+
+    if (
+      !errors.startAt &&
+      !errors.endAt &&
+      values.startAt &&
+      values.endAt &&
+      new Date(values.endAt) <= new Date(values.startAt)
+    ) {
       errors.endAt = "終了日時は開始日時より後にしてください";
     }
   }

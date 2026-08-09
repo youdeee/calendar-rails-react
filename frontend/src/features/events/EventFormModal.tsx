@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { useCreateEvent, useUpdateEvent } from "./hooks";
 import { validateEventForm, type EventFormValues, type EventFormErrors } from "./validateEventForm";
 import { toDateKey } from "../calendar/dateUtils";
@@ -91,7 +91,10 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
 
   function handleAllDayToggle(checked: boolean) {
     if (checked) {
-      updateField("allDay", true);
+      // Re-checking all-day: prefer the date the user just set via 開始日時
+      // over the stale `date` field, which was never updated while in timed mode.
+      const date = values.startAt ? values.startAt.slice(0, 10) : values.date;
+      setValues((prev) => ({ ...prev, allDay: true, date }));
       return;
     }
     const startAt = `${values.date}T09:00`;
@@ -122,9 +125,20 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
     }
   }
 
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape") onClose();
+  }
+
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40">
-      <form onSubmit={handleSubmit} className="flex w-full max-w-md flex-col gap-3 rounded-lg bg-white p-6 shadow-lg">
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-modal="true"
+        aria-label={event ? "予定を編集" : "予定を追加"}
+        className="flex w-full max-w-md flex-col gap-3 rounded-lg bg-white p-6 shadow-lg"
+      >
         <label className="flex flex-col gap-1 text-sm text-gray-700">
           タイトル
           <input
