@@ -6,17 +6,12 @@ import { CalendarPage } from "./features/calendar/CalendarPage";
 const queryClient = new QueryClient();
 
 function AuthGate() {
-  const { status, logout } = useAuth();
+  const { status } = useAuth();
 
   if (status === "loading") return <div>Loading...</div>;
   if (status === "unauthenticated") return <GoogleLoginButton />;
 
-  return (
-    <div>
-      <button onClick={() => void logout()}>Logout</button>
-      <CalendarPage />
-    </div>
-  );
+  return <CalendarPage />;
 }
 
 function App() {
