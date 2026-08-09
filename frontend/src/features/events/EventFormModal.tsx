@@ -8,11 +8,20 @@ type Props = {
   onClose: () => void;
 };
 
+// datetime-local inputs display and submit local wall-clock time, but the API
+// exchanges UTC ISO strings; slicing the UTC string directly would show (and
+// on re-save, silently shift by) the browser's UTC offset.
+function toDatetimeLocalValue(isoString: string): string {
+  const date = new Date(isoString);
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
 function toFormValues(event?: CalendarEvent): EventFormValues {
   return {
     title: event?.title ?? "",
-    startAt: event ? event.start_at.slice(0, 16) : "",
-    endAt: event ? event.end_at.slice(0, 16) : "",
+    startAt: event ? toDatetimeLocalValue(event.start_at) : "",
+    endAt: event ? toDatetimeLocalValue(event.end_at) : "",
     recurrenceEnabled: Boolean(event?.recurrence),
     frequency: event?.recurrence?.frequency ?? "weekly",
     interval: String(event?.recurrence?.interval ?? 1),
@@ -26,6 +35,10 @@ export function EventFormModal({ event, onClose }: Props) {
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const errorMessages = Object.values(errors).filter((message): message is string => Boolean(message));
+
+  function updateField<K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -45,18 +58,17 @@ export function EventFormModal({ event, onClose }: Props) {
     };
 
     if (event) {
-      updateEvent.mutate({ id: event.id, input });
+      updateEvent.mutate({ id: event.id, input }, { onSuccess: onClose });
     } else {
-      createEvent.mutate(input);
+      createEvent.mutate(input, { onSuccess: onClose });
     }
-    onClose();
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <label>
         タイトル
-        <input value={values.title} onChange={(e) => setValues({ ...values, title: e.target.value })} />
+        <input value={values.title} onChange={(e) => updateField("title", e.target.value)} />
       </label>
 
       <label>
@@ -64,17 +76,13 @@ export function EventFormModal({ event, onClose }: Props) {
         <input
           type="datetime-local"
           value={values.startAt}
-          onChange={(e) => setValues({ ...values, startAt: e.target.value })}
+          onChange={(e) => updateField("startAt", e.target.value)}
         />
       </label>
 
       <label>
         終了日時
-        <input
-          type="datetime-local"
-          value={values.endAt}
-          onChange={(e) => setValues({ ...values, endAt: e.target.value })}
-        />
+        <input type="datetime-local" value={values.endAt} onChange={(e) => updateField("endAt", e.target.value)} />
       </label>
 
       <label>
@@ -82,7 +90,7 @@ export function EventFormModal({ event, onClose }: Props) {
         <input
           type="checkbox"
           checked={values.recurrenceEnabled}
-          onChange={(e) => setValues({ ...values, recurrenceEnabled: e.target.checked })}
+          onChange={(e) => updateField("recurrenceEnabled", e.target.checked)}
         />
       </label>
 
@@ -92,7 +100,7 @@ export function EventFormModal({ event, onClose }: Props) {
             頻度
             <select
               value={values.frequency}
-              onChange={(e) => setValues({ ...values, frequency: e.target.value as EventFormValues["frequency"] })}
+              onChange={(e) => updateField("frequency", e.target.value as EventFormValues["frequency"])}
             >
               <option value="daily">毎日</option>
               <option value="weekly">毎週</option>
@@ -101,14 +109,12 @@ export function EventFormModal({ event, onClose }: Props) {
           </label>
           <label>
             間隔
-            <input value={values.interval} onChange={(e) => setValues({ ...values, interval: e.target.value })} />
+            <input value={values.interval} onChange={(e) => updateField("interval", e.target.value)} />
           </label>
         </>
       )}
 
-      {errorMessages.length > 0 && (
-        <p role="alert">{errorMessages.join(" ")}</p>
-      )}
+      {errorMessages.length > 0 && <p role="alert">{errorMessages.join(" ")}</p>}
       {(createEvent.isError || updateEvent.isError) && <p role="alert">保存に失敗しました</p>}
 
       <button type="submit">保存</button>
