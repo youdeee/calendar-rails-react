@@ -1,7 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 
-it("renders the app shell", () => {
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 401 })));
+});
+
+it("shows a loading state and then resolves to the logged-out view", async () => {
   render(<App />);
-  expect(screen.getByText("Calendar App")).toBeInTheDocument();
+
+  expect(screen.getByText("Loading...")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByText("Loading...")).not.toBeInTheDocument());
 });
