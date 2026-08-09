@@ -196,6 +196,32 @@ it("does not overwrite the end time when only the start time of an existing time
   expect(screen.getByLabelText("終了日時")).toHaveValue(localEnd.toISOString().slice(0, 16));
 });
 
+it("exposes the form as an accessible dialog", () => {
+  renderModal();
+
+  const dialog = screen.getByRole("dialog");
+  expect(dialog).toHaveAttribute("aria-modal", "true");
+  expect(dialog).toHaveAccessibleName();
+});
+
+it("closes the modal when Escape is pressed", () => {
+  const { onClose } = renderModal();
+
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+  expect(onClose).toHaveBeenCalled();
+});
+
+it("re-deriving the date from the edited start time when re-checking all-day", () => {
+  renderModal();
+
+  fireEvent.click(screen.getByLabelText("終日"));
+  fireEvent.change(screen.getByLabelText("開始日時"), { target: { value: "2026-08-15T09:00" } });
+  fireEvent.click(screen.getByLabelText("終日"));
+
+  expect(screen.getByLabelText("日付")).toHaveValue("2026-08-15");
+});
+
 it("opens an existing all-day event with the all-day toggle on", () => {
   const event: CalendarEvent = {
     id: 1,

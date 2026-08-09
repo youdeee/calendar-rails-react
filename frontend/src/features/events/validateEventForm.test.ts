@@ -46,3 +46,17 @@ it("requires a date when all-day is enabled, and ignores start/end time fields",
   expect(validateEventForm(allDayValues)).toHaveProperty("date");
   expect(validateEventForm({ ...allDayValues, date: "2026-08-10" })).toEqual({});
 });
+
+it("rejects an unparsable start_at value instead of letting it reach submit", () => {
+  // Reproduces clearing the all-day date field, then unchecking 終日: the
+  // component builds `T09:00` (an empty date), which is not a parsable date.
+  const errors = validateEventForm({ ...base, startAt: "T09:00" });
+  expect(errors).toHaveProperty("startAt");
+  expect(errors.endAt).toBeUndefined();
+});
+
+it("rejects an unparsable end_at value instead of letting it reach submit", () => {
+  const errors = validateEventForm({ ...base, endAt: "NaN-NaN-NaNTNaN:NaN" });
+  expect(errors).toHaveProperty("endAt");
+  expect(errors.startAt).toBeUndefined();
+});
