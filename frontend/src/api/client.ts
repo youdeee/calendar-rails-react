@@ -1,3 +1,9 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+
+export function apiUrl(path: string, baseUrl: string = API_BASE_URL): string {
+  return `${baseUrl}${path}`;
+}
+
 let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
@@ -46,7 +52,7 @@ let refreshInFlight: Promise<boolean> | null = null;
 function refreshAccessToken(): Promise<boolean> {
   refreshInFlight ??= (async () => {
     try {
-      const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
+      const response = await fetch(apiUrl("/api/auth/refresh"), { method: "POST", credentials: "include" });
       if (!response.ok) {
         if (response.status === 401) clearSessionAndNotify();
         return false;
@@ -71,7 +77,7 @@ async function fetchWithAuth(path: string, options: RequestInit, retried: boolea
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     ...options,
     headers,
     credentials: isAuthEndpoint ? "include" : "same-origin",
