@@ -4,8 +4,8 @@ services:
     runtime: ruby
     rootDir: backend
     plan: free
-    buildCommand: bundle install
-    preDeployCommand: bundle exec rails db:migrate
+    buildCommand: bundle install && bundle exec rails db:migrate
+    # preDeployCommand: bundle exec rails db:migrate  # Render restricts preDeployCommand to paid instance types; free-tier services run migrations as part of buildCommand instead.
     startCommand: bundle exec puma -C config/puma.rb
     envVars:
       - key: RAILS_ENV
