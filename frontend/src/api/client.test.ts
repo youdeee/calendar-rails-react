@@ -1,4 +1,4 @@
-import { apiFetch, apiRequest, setAccessToken, setUnauthorizedHandler, ApiError } from "./client";
+import { apiFetch, apiRequest, apiUrl, setAccessToken, setUnauthorizedHandler, ApiError } from "./client";
 
 beforeEach(() => {
   setAccessToken(null);
@@ -152,5 +152,15 @@ describe("setUnauthorizedHandler", () => {
 
     expect(handler).toHaveBeenCalledTimes(1);
     setUnauthorizedHandler(null);
+  });
+});
+
+describe("apiUrl", () => {
+  it("leaves the path unchanged when no base URL is configured", () => {
+    expect(apiUrl("/api/events", "")).toBe("/api/events");
+  });
+
+  it("prefixes the path with the configured base URL", () => {
+    expect(apiUrl("/api/events", "https://api.example.com")).toBe("https://api.example.com/api/events");
   });
 });
