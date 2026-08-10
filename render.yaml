@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: calendar-backend
+    runtime: ruby
+    rootDir: backend
+    plan: free
+    buildCommand: bundle install
+    preDeployCommand: bundle exec rails db:migrate
+    startCommand: bundle exec puma -C config/puma.rb
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
