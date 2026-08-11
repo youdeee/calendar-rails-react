@@ -7,9 +7,10 @@ import type { CalendarEvent } from "../events/api";
 type Props = {
   weekStart: Date;
   onSelectEvent: (event: CalendarEvent) => void;
+  onSelectDate: (date: Date) => void;
 };
 
-export function WeekView({ weekStart, onSelectEvent }: Props) {
+export function WeekView({ weekStart, onSelectEvent, onSelectDate }: Props) {
   const days = getWeekDays(weekStart);
   const { data: events = [], isError } = useEvents(days[0], days[days.length - 1]);
   const eventsByDay = groupEventsByDay(events);
@@ -17,7 +18,7 @@ export function WeekView({ weekStart, onSelectEvent }: Props) {
   return (
     <div className="flex h-full flex-col">
       {isError && <p role="alert">予定の取得に失敗しました</p>}
-      <TimeGrid days={days} eventsByDay={eventsByDay} onSelectEvent={onSelectEvent} />
+      <TimeGrid days={days} eventsByDay={eventsByDay} onSelectEvent={onSelectEvent} onSelectDate={onSelectDate} />
     </div>
   );
 }

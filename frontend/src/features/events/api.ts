@@ -22,7 +22,7 @@ export type EventInput = {
   recurrence?: RecurrenceParams | null;
 };
 
-export function fetchEvents(from: Date, to: Date): Promise<CalendarEvent[]> {
+export function fetchEvents(from: Date, to: Date, signal?: AbortSignal): Promise<CalendarEvent[]> {
   // Callers pass whatever time-of-day their `from`/`to` Dates happen to carry
   // (e.g. CalendarPage seeds "today" from `new Date()`, keeping the current
   // wall-clock time). The backend compares against these instants directly
@@ -40,7 +40,7 @@ export function fetchEvents(from: Date, to: Date): Promise<CalendarEvent[]> {
   const rangeEnd = new Date(to);
   rangeEnd.setHours(23, 59, 59, 999);
   const params = new URLSearchParams({ from: rangeStart.toISOString(), to: rangeEnd.toISOString() });
-  return apiRequest<CalendarEvent[]>(`/api/events?${params.toString()}`);
+  return apiRequest<CalendarEvent[]>(`/api/events?${params.toString()}`, { signal });
 }
 
 export function createEvent(input: EventInput): Promise<CalendarEvent> {
