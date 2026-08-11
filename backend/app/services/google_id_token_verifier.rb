@@ -2,6 +2,8 @@ class GoogleIdTokenVerifier
   class InvalidToken < StandardError; end
 
   def self.verify(id_token)
+    p "client_id"
+    p client_id
     Google::Auth::IDTokens.verify_oidc(id_token, aud: client_id)
   rescue Google::Auth::IDTokens::VerificationError => e
     raise InvalidToken, e.message
