@@ -24,7 +24,8 @@ it("defaults to an all-day event on the currently displayed date when creating",
   renderModal();
 
   expect(screen.getByLabelText("終日")).toBeChecked();
-  expect(screen.getByLabelText("日付")).toHaveValue("2026-08-10");
+  expect(screen.getByLabelText("開始日")).toHaveValue("2026-08-10");
+  expect(screen.getByLabelText("終了日")).toHaveValue("2026-08-10");
 });
 
 it("shows a validation error and does not submit when the title is blank", async () => {
@@ -219,7 +220,8 @@ it("re-deriving the date from the edited start time when re-checking all-day", (
   fireEvent.change(screen.getByLabelText("開始日時"), { target: { value: "2026-08-15T09:00" } });
   fireEvent.click(screen.getByLabelText("終日"));
 
-  expect(screen.getByLabelText("日付")).toHaveValue("2026-08-15");
+  expect(screen.getByLabelText("開始日")).toHaveValue("2026-08-15");
+  expect(screen.getByLabelText("終了日")).toHaveValue("2026-08-15");
 });
 
 it("opens an existing all-day event with the all-day toggle on", () => {
@@ -236,4 +238,48 @@ it("opens an existing all-day event with the all-day toggle on", () => {
   renderModal(vi.fn(), event);
 
   expect(screen.getByLabelText("終日")).toBeChecked();
+});
+
+it("edits an all-day event with an inclusive end date and submits an exclusive API boundary", async () => {
+  const event: CalendarEvent = {
+    id: 1,
+    title: "Trip",
+    description: null,
+    // Construct local midnights instead of hard-coding JST-equivalent UTC
+    // strings, so this assertion has the same calendar-day meaning in CI.
+    start_at: new Date(2026, 7, 10).toISOString(),
+    end_at: new Date(2026, 7, 13).toISOString(),
+    all_day: true,
+    recurring: false,
+    recurrence: null,
+  };
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(event), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  renderModal(vi.fn(), event);
+
+  expect(screen.getByLabelText("開始日")).toHaveValue("2026-08-10");
+  expect(screen.getByLabelText("終了日")).toHaveValue("2026-08-12");
+  await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+  expect(new Date(body.event.end_at).toDateString()).toBe(new Date(2026, 7, 13).toDateString());
+});
+
+it("loads existing recurrence settings into the edit form", () => {
+  const event: CalendarEvent = {
+    id: 1,
+    title: "Standup",
+    description: null,
+    start_at: "2026-08-10T00:00:00Z",
+    end_at: "2026-08-11T00:00:00Z",
+    all_day: true,
+    recurring: true,
+    recurrence: { frequency: "monthly", interval: 2, until: "2026-12-31" },
+  };
+  renderModal(vi.fn(), event);
+
+  expect(screen.getByLabelText("繰り返す")).toBeChecked();
+  expect(screen.getByLabelText("頻度")).toHaveValue("monthly");
+  expect(screen.getByLabelText("間隔")).toHaveValue("2");
 });

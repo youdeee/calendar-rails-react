@@ -3,7 +3,8 @@ import { validateEventForm, type EventFormValues } from "./validateEventForm";
 const base: EventFormValues = {
   title: "Meeting",
   allDay: false,
-  date: "2026-08-10",
+  startDate: "2026-08-10",
+  endDate: "2026-08-10",
   startAt: "2026-08-10T10:00",
   endAt: "2026-08-10T11:00",
   recurrenceEnabled: false,
@@ -41,10 +42,12 @@ it("does not validate interval when recurrence is disabled", () => {
   expect(validateEventForm({ ...base, recurrenceEnabled: false, interval: "abc" })).toEqual({});
 });
 
-it("requires a date when all-day is enabled, and ignores start/end time fields", () => {
-  const allDayValues = { ...base, allDay: true, date: "", startAt: "", endAt: "" };
-  expect(validateEventForm(allDayValues)).toHaveProperty("date");
-  expect(validateEventForm({ ...allDayValues, date: "2026-08-10" })).toEqual({});
+it("requires valid inclusive start and end dates when all-day is enabled", () => {
+  const allDayValues = { ...base, allDay: true, startDate: "", endDate: "", startAt: "", endAt: "" };
+  expect(validateEventForm(allDayValues)).toHaveProperty("startDate");
+  expect(validateEventForm(allDayValues)).toHaveProperty("endDate");
+  expect(validateEventForm({ ...allDayValues, startDate: "2026-08-10", endDate: "2026-08-09" })).toHaveProperty("endDate");
+  expect(validateEventForm({ ...allDayValues, startDate: "2026-08-10", endDate: "2026-08-10" })).toEqual({});
 });
 
 it("rejects an unparsable start_at value instead of letting it reach submit", () => {
@@ -65,6 +68,6 @@ it("rejects an unparsable all-day date instead of letting it reach submit", () =
   // Reproduces: clear 日付 while all-day, uncheck 終日 (date stays ""), then
   // re-check 終日 — handleAllDayToggle adopts startAt ("T09:00") into date,
   // which is not a parsable date.
-  const errors = validateEventForm({ ...base, allDay: true, date: "T09:00" });
-  expect(errors).toHaveProperty("date");
+  const errors = validateEventForm({ ...base, allDay: true, startDate: "T09:00" });
+  expect(errors).toHaveProperty("startDate");
 });

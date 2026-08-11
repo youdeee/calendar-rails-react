@@ -30,12 +30,19 @@ export function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
+  const [createDate, setCreateDate] = useState<Date | undefined>();
 
   const isModalOpen = isCreating || editingEvent !== undefined;
 
   function closeModal() {
     setIsCreating(false);
     setEditingEvent(undefined);
+    setCreateDate(undefined);
+  }
+
+  function openCreateForDate(date: Date) {
+    setCreateDate(date);
+    setIsCreating(true);
   }
 
   return (
@@ -94,12 +101,12 @@ export function CalendarPage() {
       </header>
 
       <div className="flex-1 overflow-hidden">
-        {viewMode === "month" && <MonthView month={currentDate} onSelectEvent={setEditingEvent} />}
-        {viewMode === "week" && <WeekView weekStart={currentDate} onSelectEvent={setEditingEvent} />}
-        {viewMode === "day" && <DayView day={currentDate} onSelectEvent={setEditingEvent} />}
+        {viewMode === "month" && <MonthView month={currentDate} onSelectEvent={setEditingEvent} onSelectDate={openCreateForDate} />}
+        {viewMode === "week" && <WeekView weekStart={currentDate} onSelectEvent={setEditingEvent} onSelectDate={openCreateForDate} />}
+        {viewMode === "day" && <DayView day={currentDate} onSelectEvent={setEditingEvent} onSelectDate={openCreateForDate} />}
       </div>
 
-      {isModalOpen && <EventFormModal event={editingEvent} defaultDate={currentDate} onClose={closeModal} />}
+      {isModalOpen && <EventFormModal event={editingEvent} defaultDate={createDate ?? currentDate} onClose={closeModal} />}
     </div>
   );
 }

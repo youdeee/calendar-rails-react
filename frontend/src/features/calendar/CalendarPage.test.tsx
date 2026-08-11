@@ -109,5 +109,6 @@ it("opens the create-event modal defaulting to the currently navigated-to date, 
   const dateKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-${String(
     nextMonth.getDate()
   ).padStart(2, "0")}`;
-  expect(await screen.findByLabelText("日付")).toHaveValue(dateKey);
+  expect(await screen.findByLabelText("開始日")).toHaveValue(dateKey);
+  expect(screen.getByLabelText("終了日")).toHaveValue(dateKey);
 });

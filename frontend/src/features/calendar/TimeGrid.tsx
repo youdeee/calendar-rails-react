@@ -12,6 +12,7 @@ type Props = {
   days: Date[];
   eventsByDay: Map<string, CalendarEvent[]>;
   onSelectEvent: (event: CalendarEvent) => void;
+  onSelectDate?: (date: Date) => void;
 };
 
 function CurrentTimeLine() {
@@ -25,7 +26,7 @@ function CurrentTimeLine() {
   );
 }
 
-export function TimeGrid({ days, eventsByDay, onSelectEvent }: Props) {
+export function TimeGrid({ days, eventsByDay, onSelectEvent, onSelectDate = () => {} }: Props) {
   const today = new Date();
 
   return (
@@ -57,11 +58,11 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent }: Props) {
           const dayEvents = eventsByDay.get(toDateKey(day)) ?? [];
           const allDayEvents = dayEvents.filter((event) => event.all_day);
           return (
-            <div key={toDateKey(day)} className="flex flex-1 flex-col gap-1 border-l border-gray-200 p-1">
+            <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="flex flex-1 flex-col gap-1 border-l border-gray-200 p-1">
               {allDayEvents.map((event) => (
                 <button
                   key={`${event.id}-${event.start_at}`}
-                  onClick={() => onSelectEvent(event)}
+                  onClick={(e) => { e.stopPropagation(); onSelectEvent(event); }}
                   className="truncate rounded bg-brand px-1.5 py-0.5 text-left text-xs text-white"
                 >
                   <EventLabel event={event} />
@@ -90,7 +91,7 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent }: Props) {
           const timedEvents = dayEvents.filter((event) => !event.all_day);
 
           return (
-            <div key={toDateKey(day)} className="relative flex-1 border-l border-gray-200">
+            <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="relative flex-1 border-l border-gray-200">
               {HOURS.map((hour) => (
                 <div key={hour} className="border-b border-gray-100" style={{ height: `${HOUR_ROW_HEIGHT_PX}px` }} />
               ))}
@@ -101,7 +102,7 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent }: Props) {
                 return (
                   <button
                     key={`${event.id}-${event.start_at}`}
-                    onClick={() => onSelectEvent(event)}
+                    onClick={(e) => { e.stopPropagation(); onSelectEvent(event); }}
                     className="absolute overflow-hidden rounded bg-brand px-1.5 py-0.5 text-left text-xs text-white"
                     style={{
                       top: `${topPercent}%`,
