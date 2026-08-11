@@ -17,6 +17,7 @@ import type { CalendarEvent } from "../events/api";
 type Props = {
   month: Date;
   onSelectEvent: (event: CalendarEvent) => void;
+  onSelectDate?: (date: Date) => void;
 };
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -27,7 +28,7 @@ function capEvents(events: CalendarEvent[]): { visible: CalendarEvent[]; overflo
   return { visible: events.slice(0, MAX_VISIBLE_EVENTS), overflowCount: events.length - MAX_VISIBLE_EVENTS };
 }
 
-function EventChip({ event, onSelectEvent }: { event: CalendarEvent; onSelectEvent: (e: CalendarEvent) => void }) {
+function EventChip({ event, day, onSelectEvent }: { event: CalendarEvent; day: Date; onSelectEvent: (e: CalendarEvent) => void }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `${event.id}:${event.start_at}`,
     disabled: event.recurring,
@@ -39,8 +40,10 @@ function EventChip({ event, onSelectEvent }: { event: CalendarEvent; onSelectEve
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      onClick={() => onSelectEvent(event)}
-      className="truncate rounded bg-brand px-1.5 py-0.5 text-left text-xs text-white hover:brightness-110"
+      onClick={(e) => { e.stopPropagation(); onSelectEvent(event); }}
+      className={`truncate bg-brand px-1.5 py-0.5 text-left text-xs text-white hover:brightness-110 ${
+        !event.all_day || isSameDay(new Date(event.start_at), day) ? "rounded-l" : "rounded-l-none"
+      } ${!event.all_day || isSameDay(new Date(new Date(event.end_at).getTime() - 1), day) ? "rounded-r" : "rounded-r-none"}`}
     >
       <EventLabel event={event} />
     </button>
@@ -53,12 +56,14 @@ function DayCell({
   month,
   events,
   onSelectEvent,
+  onSelectDate,
 }: {
   day: Date;
   today: Date;
   month: Date;
   events: CalendarEvent[];
   onSelectEvent: (e: CalendarEvent) => void;
+  onSelectDate: (date: Date) => void;
 }) {
   const key = toDateKey(day);
   const { setNodeRef } = useDroppable({ id: key });
@@ -75,20 +80,21 @@ function DayCell({
     <div
       ref={setNodeRef}
       data-date-key={key}
+      onClick={() => onSelectDate(day)}
       className={`flex min-h-24 flex-col gap-1 border-b border-r border-gray-200 p-1 ${
         isSameDay(day, today) ? "bg-blue-50" : ""
       }`}
     >
       <div className={`self-end text-sm ${dateLabelClass}`}>{day.getDate()}</div>
       {visible.map((event) => (
-        <EventChip key={`${event.id}-${event.start_at}`} event={event} onSelectEvent={onSelectEvent} />
+        <EventChip key={`${event.id}-${event.start_at}`} event={event} day={day} onSelectEvent={onSelectEvent} />
       ))}
       {overflowCount > 0 && <span className="text-xs text-gray-500">+{overflowCount}件</span>}
     </div>
   );
 }
 
-export function MonthView({ month, onSelectEvent }: Props) {
+export function MonthView({ month, onSelectEvent, onSelectDate = () => {} }: Props) {
   const days = getMonthGridDays(month);
   const { data: events = [], isError } = useEvents(days[0], days[days.length - 1]);
   const updateEvent = useUpdateEvent();
@@ -133,6 +139,7 @@ export function MonthView({ month, onSelectEvent }: Props) {
                 month={month}
                 events={eventsByDay.get(key) ?? []}
                 onSelectEvent={onSelectEvent}
+                onSelectDate={onSelectDate}
               />
             );
           })}

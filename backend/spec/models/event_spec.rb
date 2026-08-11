@@ -86,5 +86,15 @@ RSpec.describe Event, type: :model do
       result = event.occurrences_between(Time.zone.parse("2026-08-10"), Time.zone.parse("2026-08-20"))
       expect(result).to eq([event.start_at])
     end
+
+    it "includes a recurring multi-day occurrence that starts before range_start" do
+      event = build_event(start_at: Time.zone.parse("2026-08-03 00:00"), end_at: Time.zone.parse("2026-08-06 00:00"))
+      event.recurrence_params = { "frequency" => "weekly", "interval" => 1 }
+      event.save!
+
+      result = event.occurrences_between(Time.zone.parse("2026-08-05"), Time.zone.parse("2026-08-10"))
+
+      expect(result).to include(Time.zone.parse("2026-08-03 00:00"), Time.zone.parse("2026-08-10 00:00"))
+    end
   end
 end

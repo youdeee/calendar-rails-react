@@ -56,9 +56,17 @@ class Event < ApplicationRecord
       return (start_at <= inclusive_range_end && end_at >= range_start) ? [start_at] : []
     end
 
+    # An occurrence can start before the visible range and still overlap it
+    # (for example, a three-day all-day event shown in a week beginning on
+    # its second day). Ask IceCube for a duration-sized lookback, then keep
+    # only occurrences that actually intersect the requested range.
+    duration = end_at - start_at
+    occurrence_search_start = range_start - duration
     schedule = IceCube::Schedule.new(start_at)
     schedule.add_recurrence_rule(ice_cube_rule)
-    schedule.occurrences_between(range_start, inclusive_range_end)
+    schedule.occurrences_between(occurrence_search_start, inclusive_range_end).select do |occurrence_start|
+      occurrence_start <= inclusive_range_end && occurrence_start + duration >= range_start
+    end
   end
 
   private

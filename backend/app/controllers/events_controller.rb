@@ -71,7 +71,8 @@ class EventsController < ApplicationController
       title: event.title,
       description: event.description,
       all_day: event.all_day,
-      recurring: event.recurring?
+      recurring: event.recurring?,
+      recurrence: event.recurrence_params
     }
   end
 
