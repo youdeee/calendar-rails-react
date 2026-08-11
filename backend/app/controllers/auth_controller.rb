@@ -7,10 +7,7 @@ class AuthController < ApplicationController
   def login
     begin
       payload = GoogleIdTokenVerifier.verify(params.require(:id_token))
-      p "payload"
-      p payload
       user = User.find_or_create_from_google!(payload)
-      p user
     rescue GoogleIdTokenVerifier::InvalidToken, ArgumentError
       return render json: { error: { message: "Invalid Google token" } }, status: :unauthorized
     end

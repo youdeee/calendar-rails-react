@@ -35,7 +35,7 @@ Rails 8.1 API backend + Vite/React frontend. Deployed on Render (backend), Verce
 
 | Var | Default | Notes |
 |---|---|---|
-| `VITE_API_BASE_URL` | empty | relative paths via the Vite dev proxy locally; set to the deployed backend's absolute URL in production (also added to CSP `connect-src` at Vite build time—redeploy after changing) |
+| `VITE_API_BASE_URL` | empty | relative paths via the Vite dev proxy locally; set to the deployed backend's absolute URL in production |
 | `VITE_GOOGLE_CLIENT_ID` | — | Google Sign-In |
 
 See `docs/superpowers/specs/2026-08-10-vercel-render-neon-deploy-design.md` for the full deployment design.
