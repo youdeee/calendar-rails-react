@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EventFormModal } from "./EventFormModal";
@@ -282,4 +282,64 @@ it("loads existing recurrence settings into the edit form", () => {
   expect(screen.getByLabelText("繰り返す")).toBeChecked();
   expect(screen.getByLabelText("頻度")).toHaveValue("monthly");
   expect(screen.getByLabelText("間隔")).toHaveValue("2");
+});
+
+it("shows a delete confirmation only for an existing event and cancels without a request", async () => {
+  const event: CalendarEvent = {
+    id: 1, title: "Meeting", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
+    all_day: true, recurring: false, recurrence: null,
+  };
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  renderModal(vi.fn(), event);
+
+  await userEvent.click(screen.getByRole("button", { name: "予定を削除" }));
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("このイベントを削除しますか？");
+  await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "キャンセル" }));
+
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it("deletes an event after confirmation and closes the edit modal", async () => {
+  const event: CalendarEvent = {
+    id: 42, title: "Meeting", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
+    all_day: true, recurring: false, recurrence: null,
+  };
+  const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const { onClose } = renderModal(vi.fn(), event);
+
+  await userEvent.click(screen.getByRole("button", { name: "予定を削除" }));
+  await userEvent.click(screen.getByRole("button", { name: "削除する" }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(fetchMock.mock.calls[0][0]).toContain("/api/events/42");
+  expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: "DELETE" });
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+});
+
+it("keeps the confirmation open and reports a delete failure", async () => {
+  const event: CalendarEvent = {
+    id: 1, title: "Meeting", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
+    all_day: true, recurring: false, recurrence: null,
+  };
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 500 })));
+  renderModal(vi.fn(), event);
+
+  await userEvent.click(screen.getByRole("button", { name: "予定を削除" }));
+  await userEvent.click(screen.getByRole("button", { name: "削除する" }));
+
+  await waitFor(() => expect(screen.getByRole("alertdialog")).toHaveTextContent("削除に失敗しました"));
+});
+
+it("explains that deleting a recurring event deletes its series", async () => {
+  const event: CalendarEvent = {
+    id: 1, title: "Standup", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
+    all_day: true, recurring: true, recurrence: { frequency: "weekly", interval: 1 },
+  };
+  renderModal(vi.fn(), event);
+
+  await userEvent.click(screen.getByRole("button", { name: "予定を削除" }));
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("この繰り返し予定をすべて削除しますか？");
 });

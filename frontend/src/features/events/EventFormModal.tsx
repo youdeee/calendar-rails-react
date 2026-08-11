@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
-import { useCreateEvent, useUpdateEvent } from "./hooks";
+import { useCreateEvent, useDeleteEvent, useUpdateEvent } from "./hooks";
 import { validateEventForm, type EventFormValues, type EventFormErrors } from "./validateEventForm";
 import { toDateKey } from "../calendar/dateUtils";
 import type { CalendarEvent, RecurrenceParams } from "./api";
@@ -70,8 +70,10 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
   const [values, setValues] = useState<EventFormValues>(() => toFormValues(event, defaultDate));
   const [errors, setErrors] = useState<EventFormErrors>({});
   const [endAtTouched, setEndAtTouched] = useState(Boolean(event) && !event?.all_day);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
+  const deleteEvent = useDeleteEvent();
   const errorMessages = Object.values(errors).filter((message): message is string => Boolean(message));
 
   function updateField<K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) {
@@ -134,6 +136,11 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
     if (e.key === "Escape") onClose();
   }
 
+  function handleDelete() {
+    if (!event) return;
+    deleteEvent.mutate(event.id, { onSuccess: onClose });
+  }
+
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40">
       <form
@@ -144,6 +151,19 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
         aria-label={event ? "予定を編集" : "予定を追加"}
         className="flex w-full max-w-md flex-col gap-3 rounded-lg bg-white p-6 shadow-lg"
       >
+        {event && (
+          <button
+            type="button"
+            aria-label="予定を削除"
+            onClick={() => setIsDeleteConfirmOpen(true)}
+            className="-mt-2 -mr-2 self-end rounded p-2 text-red-600 hover:bg-red-50"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current stroke-2">
+              <path d="M4 7h16M10 11v6m4-6v6M9 7l1-2h4l1 2m-9 0 1 13h10l1-13" />
+            </svg>
+          </button>
+        )}
+
         <label className="flex flex-col gap-1 text-sm text-gray-700">
           タイトル
           <input
@@ -267,6 +287,41 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
           </button>
         </div>
       </form>
+
+      {isDeleteConfirmOpen && event && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirmation-title"
+            className="flex w-full max-w-sm flex-col gap-4 rounded-lg bg-white p-6 shadow-lg"
+          >
+            <h2 id="delete-confirmation-title" className="text-lg font-medium text-gray-800">
+              {event.recurring ? "この繰り返し予定をすべて削除しますか？" : "このイベントを削除しますか？"}
+            </h2>
+            <p className="text-sm text-gray-600">この操作は取り消せません。</p>
+            {deleteEvent.isError && <p role="alert" className="text-sm text-red-600">削除に失敗しました</p>}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={deleteEvent.isPending}
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                className="rounded px-3 py-1.5 text-sm hover:bg-gray-100 disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                disabled={deleteEvent.isPending}
+                onClick={handleDelete}
+                className="rounded bg-red-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteEvent.isPending ? "削除中…" : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
