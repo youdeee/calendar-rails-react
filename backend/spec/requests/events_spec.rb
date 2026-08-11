@@ -46,6 +46,7 @@ RSpec.describe "Events", type: :request do
       body = JSON.parse(response.body)
       expect(body.size).to eq(5)
       expect(body.all? { |e| e["id"] == event.id && e["recurring"] == true }).to be true
+      expect(body.first["recurrence"]).to eq({ "frequency" => "weekly", "interval" => 1 })
     end
 
     it "includes an event later in the day than the `to` boundary" do
