@@ -37,10 +37,10 @@ class Event < ApplicationRecord
     return nil unless params
 
     rule = case params["frequency"]
-           when "daily" then IceCube::Rule.daily(params["interval"])
-           when "weekly" then IceCube::Rule.weekly(params["interval"])
-           when "monthly" then IceCube::Rule.monthly(params["interval"])
-           end
+    when "daily" then IceCube::Rule.daily(params["interval"])
+    when "weekly" then IceCube::Rule.weekly(params["interval"])
+    when "monthly" then IceCube::Rule.monthly(params["interval"])
+    end
     rule = rule.until(Date.parse(params["until"])) if params["until"].present?
     rule
   end

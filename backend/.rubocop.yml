@@ -1,0 +1,11 @@
+inherit_gem:
+  rubocop-rails-omakase: rubocop.yml
+# 配列のリテラル [ 1, 2 ] の内側にスペースを入れない
+Layout/SpaceInsideArrayLiteralBrackets:
+  Enabled: true
+  EnforcedStyle: no_space
+
+# %w[ foo bar ] や %i[ foo bar ] のようなパーセント記法の括弧内にスペースを入れない
+Layout/SpaceInsidePercentLiteralDelimiters:
+  Enabled: true
+  EnforcedStyle: no_space
