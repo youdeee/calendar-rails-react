@@ -26,10 +26,13 @@ function addHours(datetimeLocalValue: string, hours: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function dateOnlyToRange(dateStr: string): { start_at: string; end_at: string } {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const start = new Date(year, month - 1, day);
-  const end = new Date(year, month - 1, day + 1);
+function dateOnlyToRange(startDate: string, endDate: string): { start_at: string; end_at: string } {
+  const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
+  const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
+  const start = new Date(startYear, startMonth - 1, startDay);
+  // The form's end date is inclusive; the API stores all-day ranges as an
+  // exclusive next-midnight boundary.
+  const end = new Date(endYear, endMonth - 1, endDay + 1);
   return { start_at: start.toISOString(), end_at: end.toISOString() };
 }
 
@@ -38,7 +41,8 @@ function toFormValues(event: CalendarEvent | undefined, defaultDate: Date): Even
     return {
       title: "",
       allDay: true,
-      date: toDateKey(defaultDate),
+      startDate: toDateKey(defaultDate),
+      endDate: toDateKey(defaultDate),
       startAt: "",
       endAt: "",
       recurrenceEnabled: false,
@@ -51,7 +55,8 @@ function toFormValues(event: CalendarEvent | undefined, defaultDate: Date): Even
   return {
     title: event.title,
     allDay: event.all_day,
-    date: toDateKey(new Date(event.start_at)),
+    startDate: toDateKey(new Date(event.start_at)),
+    endDate: event.all_day ? toDateKey(new Date(new Date(event.end_at).getTime() - 1)) : toDateKey(new Date(event.start_at)),
     startAt: event.all_day ? "" : toDatetimeLocalValue(event.start_at),
     endAt: event.all_day ? "" : toDatetimeLocalValue(event.end_at),
     recurrenceEnabled: Boolean(event.recurrence),
@@ -93,11 +98,11 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
     if (checked) {
       // Re-checking all-day: prefer the date the user just set via 開始日時
       // over the stale `date` field, which was never updated while in timed mode.
-      const date = values.startAt ? values.startAt.slice(0, 10) : values.date;
-      setValues((prev) => ({ ...prev, allDay: true, date }));
+      const startDate = values.startAt ? values.startAt.slice(0, 10) : values.startDate;
+      setValues((prev) => ({ ...prev, allDay: true, startDate, endDate: startDate }));
       return;
     }
-    const startAt = `${values.date}T09:00`;
+    const startAt = `${values.startDate}T09:00`;
     setEndAtTouched(false);
     setValues((prev) => ({ ...prev, allDay: false, startAt, endAt: addHours(startAt, 1) }));
   }
@@ -113,7 +118,7 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
       : null;
 
     const { start_at, end_at } = values.allDay
-      ? dateOnlyToRange(values.date)
+      ? dateOnlyToRange(values.startDate, values.endDate)
       : { start_at: new Date(values.startAt).toISOString(), end_at: new Date(values.endAt).toISOString() };
 
     const input = { title: values.title, start_at, end_at, all_day: values.allDay, recurrence };
@@ -154,15 +159,33 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
         </label>
 
         {values.allDay ? (
-          <label className="flex flex-col gap-1 text-sm text-gray-700">
-            日付
-            <input
-              type="date"
-              value={values.date}
-              onChange={(e) => updateField("date", e.target.value)}
-              className="rounded border border-gray-300 px-2 py-1.5"
-            />
-          </label>
+          <>
+            <label className="flex flex-col gap-1 text-sm text-gray-700">
+              開始日
+              <input
+                type="date"
+                value={values.startDate}
+                onChange={(e) => {
+                  const startDate = e.target.value;
+                  setValues((prev) => ({
+                    ...prev,
+                    startDate,
+                    endDate: !prev.endDate || prev.endDate < startDate ? startDate : prev.endDate,
+                  }));
+                }}
+                className="rounded border border-gray-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-gray-700">
+              終了日
+              <input
+                type="date"
+                value={values.endDate}
+                onChange={(e) => updateField("endDate", e.target.value)}
+                className="rounded border border-gray-300 px-2 py-1.5"
+              />
+            </label>
+          </>
         ) : (
           <>
             <label className="flex flex-col gap-1 text-sm text-gray-700">

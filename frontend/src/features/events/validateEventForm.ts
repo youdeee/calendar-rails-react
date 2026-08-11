@@ -1,7 +1,8 @@
 export type EventFormValues = {
   title: string;
   allDay: boolean;
-  date: string;
+  startDate: string;
+  endDate: string;
   startAt: string;
   endAt: string;
   recurrenceEnabled: boolean;
@@ -10,7 +11,9 @@ export type EventFormValues = {
   until: string;
 };
 
-export type EventFormErrors = Partial<Record<"title" | "date" | "startAt" | "endAt" | "interval", string>>;
+export type EventFormErrors = Partial<
+  Record<"title" | "startDate" | "endDate" | "startAt" | "endAt" | "interval", string>
+>;
 
 export function validateEventForm(values: EventFormValues): EventFormErrors {
   const errors: EventFormErrors = {};
@@ -22,8 +25,15 @@ export function validateEventForm(values: EventFormValues): EventFormErrors {
   }
 
   if (values.allDay) {
-    if (!values.date) errors.date = "日付を入力してください";
-    else if (Number.isNaN(new Date(values.date).getTime())) errors.date = "日付が不正です";
+    if (!values.startDate) errors.startDate = "開始日を入力してください";
+    else if (Number.isNaN(new Date(values.startDate).getTime())) errors.startDate = "開始日が不正です";
+
+    if (!values.endDate) errors.endDate = "終了日を入力してください";
+    else if (Number.isNaN(new Date(values.endDate).getTime())) errors.endDate = "終了日が不正です";
+
+    if (!errors.startDate && !errors.endDate && values.endDate < values.startDate) {
+      errors.endDate = "終了日は開始日以降にしてください";
+    }
   } else {
     if (!values.startAt) errors.startAt = "開始日時を入力してください";
     else if (Number.isNaN(new Date(values.startAt).getTime())) errors.startAt = "開始日時が不正です";
