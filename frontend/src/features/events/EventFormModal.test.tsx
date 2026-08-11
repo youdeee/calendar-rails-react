@@ -245,8 +245,10 @@ it("edits an all-day event with an inclusive end date and submits an exclusive A
     id: 1,
     title: "Trip",
     description: null,
-    start_at: "2026-08-09T15:00:00Z",
-    end_at: "2026-08-12T15:00:00Z",
+    // Construct local midnights instead of hard-coding JST-equivalent UTC
+    // strings, so this assertion has the same calendar-day meaning in CI.
+    start_at: new Date(2026, 7, 10).toISOString(),
+    end_at: new Date(2026, 7, 13).toISOString(),
     all_day: true,
     recurring: false,
     recurrence: null,
