@@ -6,4 +6,8 @@ class Rack::Attack
   throttle("auth/refresh", limit: 30, period: 1.minute) do |req|
     req.ip if req.path == "/api/auth/refresh" && req.post?
   end
+
+  # General backstop so no endpoint is left completely unthrottled once the
+  # repo is public; the specific auth throttles above stay tighter than this.
+  throttle("req/ip", limit: 300, period: 5.minutes, &:ip)
 end

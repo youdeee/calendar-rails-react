@@ -13,4 +13,11 @@ RSpec.describe "Rate limiting", type: :request do
 
     expect(response).to have_http_status(:too_many_requests)
   end
+
+  it "throttles any endpoint after 300 requests per 5 minutes per IP" do
+    300.times { get "/up" }
+    get "/up"
+
+    expect(response).to have_http_status(:too_many_requests)
+  end
 end
