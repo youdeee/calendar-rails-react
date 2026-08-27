@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand: #1a73e8;
+}
+
+html {
+  color-scheme: light;
+  min-height: 100%;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-white text-gray-800 dark:bg-gray-950 dark:text-gray-100;
 }

@@ -149,14 +149,14 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={event ? "予定を編集" : "予定を追加"}
-        className="flex w-full max-w-md flex-col gap-3 rounded-lg bg-white p-6 shadow-lg"
+        className="flex w-full max-w-md flex-col gap-3 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-900"
       >
         {event && (
           <button
             type="button"
             aria-label="予定を削除"
             onClick={() => setIsDeleteConfirmOpen(true)}
-            className="-mt-2 -mr-2 self-end rounded p-2 text-red-600 hover:bg-red-50"
+            className="-mt-2 -mr-2 self-end rounded p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current stroke-2">
               <path d="M4 7h16M10 11v6m4-6v6M9 7l1-2h4l1 2m-9 0 1 13h10l1-13" />
@@ -164,23 +164,23 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
           </button>
         )}
 
-        <label className="flex flex-col gap-1 text-sm text-gray-700">
+        <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
           タイトル
           <input
             value={values.title}
             onChange={(e) => updateField("title", e.target.value)}
-            className="rounded border border-gray-300 px-2 py-1.5"
+            className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
           />
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
           <input type="checkbox" checked={values.allDay} onChange={(e) => handleAllDayToggle(e.target.checked)} />
           終日
         </label>
 
         {values.allDay ? (
           <>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
               開始日
               <input
                 type="date"
@@ -193,44 +193,44 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
                     endDate: !prev.endDate || prev.endDate < startDate ? startDate : prev.endDate,
                   }));
                 }}
-                className="rounded border border-gray-300 px-2 py-1.5"
+                className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
               終了日
               <input
                 type="date"
                 value={values.endDate}
                 onChange={(e) => updateField("endDate", e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5"
+                className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
               />
             </label>
           </>
         ) : (
           <>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
               開始日時
               <input
                 type="datetime-local"
                 value={values.startAt}
                 onChange={(e) => handleStartAtChange(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5"
+                className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
               />
             </label>
 
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
               終了日時
               <input
                 type="datetime-local"
                 value={values.endAt}
                 onChange={(e) => handleEndAtChange(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5"
+                className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
               />
             </label>
           </>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
           <input
             type="checkbox"
             checked={values.recurrenceEnabled}
@@ -241,24 +241,24 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
 
         {values.recurrenceEnabled && (
           <>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
               頻度
               <select
                 value={values.frequency}
                 onChange={(e) => updateField("frequency", e.target.value as EventFormValues["frequency"])}
-                className="rounded border border-gray-300 px-2 py-1.5"
+                className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
               >
                 <option value="daily">毎日</option>
                 <option value="weekly">毎週</option>
                 <option value="monthly">毎月</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
               間隔
               <input
                 value={values.interval}
                 onChange={(e) => updateField("interval", e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5"
+                className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
               />
             </label>
           </>
@@ -276,7 +276,7 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
         )}
 
         <div className="mt-2 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded px-3 py-1.5 text-sm hover:bg-gray-100">
+          <button type="button" onClick={onClose} className="rounded px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-800">
             キャンセル
           </button>
           <button
@@ -294,19 +294,19 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-confirmation-title"
-            className="flex w-full max-w-sm flex-col gap-4 rounded-lg bg-white p-6 shadow-lg"
+            className="flex w-full max-w-sm flex-col gap-4 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-900"
           >
-            <h2 id="delete-confirmation-title" className="text-lg font-medium text-gray-800">
+            <h2 id="delete-confirmation-title" className="text-lg font-medium text-gray-800 dark:text-gray-100">
               {event.recurring ? "この繰り返し予定をすべて削除しますか？" : "このイベントを削除しますか？"}
             </h2>
-            <p className="text-sm text-gray-600">この操作は取り消せません。</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">この操作は取り消せません。</p>
             {deleteEvent.isError && <p role="alert" className="text-sm text-red-600">削除に失敗しました</p>}
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 disabled={deleteEvent.isPending}
                 onClick={() => setIsDeleteConfirmOpen(false)}
-                className="rounded px-3 py-1.5 text-sm hover:bg-gray-100 disabled:opacity-50"
+                className="rounded px-3 py-1.5 text-sm hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800"
               >
                 キャンセル
               </button>

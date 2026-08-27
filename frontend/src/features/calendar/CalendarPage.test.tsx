@@ -42,6 +42,8 @@ function monthLabel(date: Date): string {
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.stubGlobal("fetch", mockFetchRouter());
+  localStorage.clear();
+  document.documentElement.classList.remove("dark");
 });
 
 it("shows the current month and moves to the next month on click", async () => {
@@ -78,6 +80,16 @@ it("shows a day-level label when switching to day view", async () => {
   fireEvent.click(screen.getByRole("button", { name: "日" }));
 
   await screen.findByText(`${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`);
+});
+
+it("shows a theme toggle to the left of logout even without an avatar", async () => {
+  renderCalendarPage();
+  await screen.findByText(monthLabel(new Date()));
+
+  const toggle = screen.getByRole("button", { name: "ダークモードに切り替え" });
+  const logout = screen.getByRole("button", { name: "ログアウト" });
+  expect(toggle.compareDocumentPosition(logout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
 });
 
 it("marks the active view button with aria-pressed", async () => {

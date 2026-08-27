@@ -7,3 +7,4 @@ class ResizeObserverStub {
 }
 // @ts-expect-error jsdom does not implement ResizeObserver
 global.ResizeObserver = ResizeObserverStub;
+

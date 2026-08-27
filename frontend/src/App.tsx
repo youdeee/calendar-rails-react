@@ -8,8 +8,14 @@ const queryClient = new QueryClient();
 function AuthGate() {
   const { status } = useAuth();
 
-  if (status === "loading") return <div>Loading...</div>;
-  if (status === "unauthenticated") return <GoogleLoginButton />;
+  if (status === "loading") return <div className="p-4">Loading...</div>;
+  if (status === "unauthenticated") {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <GoogleLoginButton />
+      </div>
+    );
+  }
 
   return <CalendarPage />;
 }

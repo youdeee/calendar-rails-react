@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { buildContentSecurityPolicy } from "./src/contentSecurityPolicy.ts";
+import { themeBlockingScript } from "./themeBlockingScript.ts";
 
 function injectContentSecurityPolicy(): { name: string; transformIndexHtml(html: string): string } {
   return {
@@ -18,7 +19,7 @@ function injectContentSecurityPolicy(): { name: string; transformIndexHtml(html:
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), injectContentSecurityPolicy()],
+  plugins: [themeBlockingScript(), react(), tailwindcss(), injectContentSecurityPolicy()],
   server: {
     proxy: {
       "/api": {
