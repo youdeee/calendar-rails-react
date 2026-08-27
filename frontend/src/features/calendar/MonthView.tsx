@@ -73,23 +73,23 @@ function DayCell({
   const dateLabelClass = isSameDay(day, today)
     ? "flex h-6 w-6 items-center justify-center rounded-full bg-brand font-medium text-white"
     : isCurrentMonth
-      ? "text-gray-700"
-      : "text-gray-400";
+      ? "text-gray-700 dark:text-gray-200"
+      : "text-gray-400 dark:text-gray-500";
 
   return (
     <div
       ref={setNodeRef}
       data-date-key={key}
       onClick={() => onSelectDate(day)}
-      className={`flex min-h-24 flex-col gap-1 border-b border-r border-gray-200 p-1 ${
-        isSameDay(day, today) ? "bg-blue-50" : ""
+      className={`flex min-h-24 flex-col gap-1 border-b border-r border-gray-200 p-1 dark:border-gray-700 ${
+        isSameDay(day, today) ? "bg-blue-50 dark:bg-blue-950" : ""
       }`}
     >
       <div className={`self-end text-sm ${dateLabelClass}`}>{day.getDate()}</div>
       {visible.map((event) => (
         <EventChip key={`${event.id}-${event.start_at}`} event={event} day={day} onSelectEvent={onSelectEvent} />
       ))}
-      {overflowCount > 0 && <span className="text-xs text-gray-500">+{overflowCount}件</span>}
+      {overflowCount > 0 && <span className="text-xs text-gray-500 dark:text-gray-400">+{overflowCount}件</span>}
     </div>
   );
 }
@@ -120,7 +120,7 @@ export function MonthView({ month, onSelectEvent, onSelectDate = () => {} }: Pro
     <div className="flex h-full flex-col">
       {isError && <p role="alert">予定の取得に失敗しました</p>}
       {updateEvent.isError && <p role="alert">予定の更新に失敗しました</p>}
-      <div className="grid grid-cols-7 border-b border-gray-200 text-center text-xs text-gray-500">
+      <div className="grid grid-cols-7 border-b border-gray-200 text-center text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="py-2">
             {label}
@@ -128,7 +128,7 @@ export function MonthView({ month, onSelectEvent, onSelectDate = () => {} }: Pro
         ))}
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="grid flex-1 grid-cols-7 border-l border-t border-gray-200">
+        <div className="grid flex-1 grid-cols-7 border-l border-t border-gray-200 dark:border-gray-700">
           {days.map((day) => {
             const key = toDateKey(day);
             return (

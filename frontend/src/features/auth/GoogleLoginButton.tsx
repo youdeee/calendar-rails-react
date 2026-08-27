@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
+import { resolveTheme } from "../theme/theme";
 
 declare global {
   interface Window {
@@ -35,7 +36,10 @@ export function GoogleLoginButton() {
           });
         },
       });
-      window.google.accounts.id.renderButton(buttonRef.current, { theme: "outline", size: "large" });
+      window.google.accounts.id.renderButton(buttonRef.current, {
+        theme: resolveTheme() === "dark" ? "filled_black" : "outline",
+        size: "large",
+      });
     }
 
     if (window.google) {

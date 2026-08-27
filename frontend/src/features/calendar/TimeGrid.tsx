@@ -31,12 +31,12 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent, onSelectDate = () =
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
         <div className="w-14 shrink-0" />
         {days.map((day) => (
           <div
             key={toDateKey(day)}
-            className="flex-1 border-l border-gray-200 py-1 text-center text-xs text-gray-500"
+            className="flex-1 border-l border-gray-200 py-1 text-center text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400"
           >
             {WEEKDAY_LABELS[day.getDay()]}{" "}
             <span
@@ -52,13 +52,13 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent, onSelectDate = () =
         ))}
       </div>
 
-      <div className="flex border-b border-gray-200">
-        <div className="w-14 shrink-0 text-right text-xs text-gray-400">終日</div>
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="w-14 shrink-0 text-right text-xs text-gray-400 dark:text-gray-500">終日</div>
         {days.map((day) => {
           const dayEvents = eventsByDay.get(toDateKey(day)) ?? [];
           const allDayEvents = dayEvents.filter((event) => event.all_day);
           return (
-            <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="flex flex-1 flex-col gap-1 border-l border-gray-200 p-1">
+            <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="flex flex-1 flex-col gap-1 border-l border-gray-200 p-1 dark:border-gray-700">
               {allDayEvents.map((event) => (
                 <button
                   key={`${event.id}-${event.start_at}`}
@@ -78,7 +78,7 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent, onSelectDate = () =
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="pr-1 text-right text-xs text-gray-400"
+              className="pr-1 text-right text-xs text-gray-400 dark:text-gray-500"
               style={{ height: `${HOUR_ROW_HEIGHT_PX}px` }}
             >
               {hour === 0 ? "" : `${hour}:00`}
@@ -91,9 +91,9 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent, onSelectDate = () =
           const timedEvents = dayEvents.filter((event) => !event.all_day);
 
           return (
-            <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="relative flex-1 border-l border-gray-200">
+            <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="relative flex-1 border-l border-gray-200 dark:border-gray-700">
               {HOURS.map((hour) => (
-                <div key={hour} className="border-b border-gray-100" style={{ height: `${HOUR_ROW_HEIGHT_PX}px` }} />
+                <div key={hour} className="border-b border-gray-100 dark:border-gray-800" style={{ height: `${HOUR_ROW_HEIGHT_PX}px` }} />
               ))}
               {isSameDay(day, today) && <CurrentTimeLine />}
               {assignEventColumns(timedEvents, day).map(({ event, column, columnCount }) => {

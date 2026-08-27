@@ -5,6 +5,7 @@ import { DayView } from "./DayView";
 import { EventFormModal } from "../events/EventFormModal";
 import { addMonths, addWeeks, addDays } from "./dateUtils";
 import { useAuth } from "../auth/AuthContext";
+import { ThemeToggle } from "../theme/ThemeToggle";
 import type { CalendarEvent } from "../events/api";
 
 type ViewMode = "month" | "week" | "day";
@@ -46,12 +47,12 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <header className="flex items-center gap-3 border-b border-gray-200 px-4 py-2">
-        <span className="text-xl font-medium text-gray-700">カレンダー</span>
+    <div className="flex h-screen flex-col bg-white dark:bg-gray-950">
+      <header className="flex items-center gap-3 border-b border-gray-200 px-4 py-2 dark:border-gray-700">
+        <span className="text-xl font-medium text-gray-700 dark:text-gray-200">カレンダー</span>
         <button
           onClick={() => setCurrentDate(new Date())}
-          className="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
+          className="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
         >
           今日
         </button>
@@ -59,19 +60,19 @@ export function CalendarPage() {
           <button
             aria-label="前へ"
             onClick={() => setCurrentDate((d) => stepDate(d, viewMode, -1))}
-            className="rounded-full p-2 hover:bg-gray-100"
+            className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             ←
           </button>
           <button
             aria-label="次へ"
             onClick={() => setCurrentDate((d) => stepDate(d, viewMode, 1))}
-            className="rounded-full p-2 hover:bg-gray-100"
+            className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             →
           </button>
         </div>
-        <span className="text-lg text-gray-700">{formatHeaderLabel(currentDate, viewMode)}</span>
+        <span className="text-lg text-gray-700 dark:text-gray-200">{formatHeaderLabel(currentDate, viewMode)}</span>
 
         <button
           onClick={() => setIsCreating(true)}
@@ -87,14 +88,17 @@ export function CalendarPage() {
               onClick={() => setViewMode(mode)}
               aria-pressed={viewMode === mode}
               className={`rounded px-3 py-1.5 text-sm ${
-                viewMode === mode ? "bg-blue-100 text-brand" : "hover:bg-gray-100"
+                viewMode === mode
+                  ? "bg-blue-100 text-brand dark:bg-blue-900 dark:text-blue-300"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
             >
               {VIEW_LABELS[mode]}
             </button>
           ))}
+          <ThemeToggle />
           {user?.avatar_url && <img src={user.avatar_url} alt={user.name} className="h-8 w-8 rounded-full" />}
-          <button onClick={() => void logout()} className="rounded px-3 py-1.5 text-sm hover:bg-gray-100">
+          <button onClick={() => void logout()} className="rounded px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-800">
             ログアウト
           </button>
         </div>
