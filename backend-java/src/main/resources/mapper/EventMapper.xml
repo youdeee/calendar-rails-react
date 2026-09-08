@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.calendar.infrastructure.persistence.EventMapper">
+    <select id="findByIdAndUserId" resultType="com.calendar.domain.Event">
+        SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at
+        FROM events
+        WHERE id = #{id} AND user_id = #{userId}
+    </select>
+
+    <select id="findCandidates" resultType="com.calendar.domain.Event">
+        SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at
+        FROM events
+        WHERE user_id = #{userId}
+          AND (
+            (recurrence_rule IS NULL AND start_at &lt;= #{toBoundary} AND end_at &gt;= #{from})
+            OR (recurrence_rule IS NOT NULL AND start_at &lt;= #{toBoundary})
+          )
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO events (user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at)
+        VALUES (#{userId}, #{title}, #{description}, #{startAt}, #{endAt}, #{allDay}, #{recurrenceRule}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <update id="update">
+        UPDATE events
+        SET title = #{title},
+            description = #{description},
+            start_at = #{startAt},
+            end_at = #{endAt},
+            all_day = #{allDay},
+            recurrence_rule = #{recurrenceRule},
+            updated_at = #{updatedAt}
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM events WHERE id = #{id} AND user_id = #{userId}
+    </delete>
+</mapper>

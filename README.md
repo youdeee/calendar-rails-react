@@ -19,6 +19,17 @@ Rails 8.1 API backend + Vite/React frontend. Deployed on Render (backend), Verce
    npm run dev
    ```
 
+## Java / Spring Boot backend (study)
+
+Rails は残したまま、学習用の第2バックエンドが `backend-java/` にあります。API 契約は Rails 互換です。
+
+1. Postgres: `docker compose up -d db`
+2. DB 作成（既存ボリュームの場合）: `docker compose exec db createdb -U postgres calendar_java || true`
+3. `cd backend-java && ./mvnw spring-boot:run`（ポート 8080）
+4. フロント: `VITE_API_PROXY_TARGET=http://localhost:8080 npm run dev`
+
+詳細は `backend-java/README.md`。
+
 ## Backend environment variables
 
 | Var | Default | Notes |

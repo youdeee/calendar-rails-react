@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.calendar.infrastructure.persistence.UserMapper">
+    <select id="findById" resultType="com.calendar.domain.User">
+        SELECT id, email, google_uid, name, avatar_url, created_at, updated_at
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByEmail" resultType="com.calendar.domain.User">
+        SELECT id, email, google_uid, name, avatar_url, created_at, updated_at
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO users (email, google_uid, name, avatar_url, created_at, updated_at)
+        VALUES (#{email}, #{googleUid}, #{name}, #{avatarUrl}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <update id="update">
+        UPDATE users
+        SET email = #{email},
+            google_uid = #{googleUid},
+            name = #{name},
+            avatar_url = #{avatarUrl},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+</mapper>
