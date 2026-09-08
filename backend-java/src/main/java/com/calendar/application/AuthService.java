@@ -38,7 +38,7 @@ public class AuthService {
         return issueSession(upsertUser(profile));
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public IssuedSession refresh(String rawRefreshToken) {
         RefreshToken current = authenticateRefreshToken(rawRefreshToken);
         if (!refreshTokenRepository.claimIfActive(current.getId())) {
