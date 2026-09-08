@@ -1,7 +1,7 @@
 package com.calendar.infrastructure.security;
 
 import com.calendar.web.dto.ErrorResponse;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -13,13 +13,13 @@ import java.io.IOException;
 
 @RequiredArgsConstructor
 public class JsonAuthEntryPoint implements AuthenticationEntryPoint {
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getOutputStream(), ErrorResponse.of("Unauthorized"));
+        jsonMapper.writeValue(response.getOutputStream(), ErrorResponse.of("Unauthorized"));
     }
 }

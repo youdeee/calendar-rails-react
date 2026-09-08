@@ -2,7 +2,7 @@ package com.calendar.infrastructure.ratelimit;
 
 import com.calendar.config.AppProperties;
 import com.calendar.web.dto.ErrorResponse;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
     private final AppProperties.RateLimit properties;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
 
     @Override
@@ -40,7 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (!allowed) {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            objectMapper.writeValue(response.getOutputStream(), ErrorResponse.of("Too Many Requests"));
+            jsonMapper.writeValue(response.getOutputStream(), ErrorResponse.of("Too Many Requests"));
             return;
         }
         filterChain.doFilter(request, response);

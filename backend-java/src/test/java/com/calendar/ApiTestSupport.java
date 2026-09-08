@@ -6,7 +6,7 @@ import com.calendar.application.exception.InvalidGoogleTokenException;
 import com.calendar.domain.User;
 import com.calendar.domain.UserRepository;
 import com.calendar.infrastructure.security.JwtService;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,7 +31,7 @@ public abstract class ApiTestSupport {
     protected MockMvc mockMvc;
 
     @Autowired
-    protected ObjectMapper objectMapper;
+    protected JsonMapper objectMapper;
 
     @Autowired
     protected UserRepository userRepository;

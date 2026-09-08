@@ -3,7 +3,7 @@ package com.calendar.infrastructure.security;
 import com.calendar.config.AppProperties;
 import com.calendar.domain.UserRepository;
 import com.calendar.infrastructure.ratelimit.RateLimitFilter;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -51,13 +51,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    RateLimitFilter rateLimitFilter(AppProperties properties, ObjectMapper objectMapper) {
-        return new RateLimitFilter(properties.rateLimit(), objectMapper);
+    RateLimitFilter rateLimitFilter(AppProperties properties, JsonMapper jsonMapper) {
+        return new RateLimitFilter(properties.rateLimit(), jsonMapper);
     }
 
     @Bean
-    JsonAuthEntryPoint jsonAuthEntryPoint(ObjectMapper objectMapper) {
-        return new JsonAuthEntryPoint(objectMapper);
+    JsonAuthEntryPoint jsonAuthEntryPoint(JsonMapper jsonMapper) {
+        return new JsonAuthEntryPoint(jsonMapper);
     }
 
     @Bean
