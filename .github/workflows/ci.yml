@@ -72,3 +72,16 @@ jobs:
           cache-dependency-path: backend-java/pom.xml
       - run: chmod +x mvnw
       - run: ./mvnw -B verify
+
+  backend-go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend-go/go.mod
+          cache-dependency-path: backend-go/go.sum
+      - run: go test ./...

@@ -30,6 +30,17 @@ Rails は残したまま、学習用の第2バックエンドが `backend-java/`
 
 詳細は `backend-java/README.md`。
 
+## Go backend (study)
+
+Rails / Java は残したまま、学習用の第3バックエンドが `backend-go/` にあります。API 契約は Rails 互換です。
+
+1. Postgres: `docker compose up -d db`
+2. DB 作成（既存ボリュームの場合）: `docker compose exec db createdb -U postgres calendar_go || true`
+3. `cd backend-go && go run ./cmd/api`（ポート 8081）
+4. フロント: `VITE_API_PROXY_TARGET=http://localhost:8081 npm run dev`
+
+詳細は `backend-go/README.md`。
+
 ## Backend environment variables
 
 | Var | Default | Notes |
