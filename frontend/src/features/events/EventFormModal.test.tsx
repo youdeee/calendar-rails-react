@@ -199,7 +199,7 @@ it("does not overwrite the end time when only the start time of an existing time
   // the computed strings are correct regardless of the test runner's timezone.
   const offsetMinutes = new Date(event.start_at!).getTimezoneOffset();
   const localStart = new Date(new Date(event.start_at!).getTime() - offsetMinutes * 60000);
-  const localEnd = new Date(new Date(event.end_at).getTime() - offsetMinutes * 60000);
+  const localEnd = new Date(new Date(event.end_at!).getTime() - offsetMinutes * 60000);
   const newStartValue = new Date(localStart.getTime() - 60 * 60000).toISOString().slice(0, 16);
 
   fireEvent.change(screen.getByLabelText("開始日時"), { target: { value: newStartValue } });
