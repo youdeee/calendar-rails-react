@@ -250,6 +250,49 @@ class EventApiTest extends ApiTestSupport {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void createsAllDayEventFromStartOnAndEndOn() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"event":{"title":"Holiday","all_day":true,"start_on":"2026-08-10","end_on":"2026-08-12","reminder_minutes":360}}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.all_day").value(true))
+                .andExpect(jsonPath("$.start_on").value("2026-08-10"))
+                .andExpect(jsonPath("$.end_on").value("2026-08-12"))
+                .andExpect(jsonPath("$.start_at").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.reminder_minutes").value(360));
+    }
+
+    @Test
+    void listsAllDayEventInRange() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"event":{"title":"Holiday","all_day":true,"start_on":"2026-08-10","end_on":"2026-08-10"}}
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/events").param("from", "2026-08-01").param("to", "2026-08-31").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Holiday"))
+                .andExpect(jsonPath("$[0].start_on").value("2026-08-10"));
+    }
+
+    @Test
+    void rejectsReminderMinutesAboveThirtyDays() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"event":{"title":"Lunch","start_at":"2026-08-10T12:00:00+09:00","end_at":"2026-08-10T13:00:00+09:00","reminder_minutes":43201}}
+                                """))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
     private MvcResult createEvent(User owner, String title, String start, String end, String recurrenceJson) throws Exception {
         String recurrence = recurrenceJson == null ? "" : ",\"recurrence\":" + recurrenceJson;
         return mockMvc.perform(post("/api/events")

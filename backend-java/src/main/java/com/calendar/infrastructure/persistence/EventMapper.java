@@ -5,16 +5,23 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
 public interface EventMapper {
+    Event findById(@Param("id") Long id);
+
     Event findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
     List<Event> findCandidates(
             @Param("userId") Long userId,
             @Param("from") Instant from,
-            @Param("toBoundary") Instant toBoundary);
+            @Param("toBoundary") Instant toBoundary,
+            @Param("zoneStartDate") LocalDate zoneStartDate,
+            @Param("zoneEndDate") LocalDate zoneEndDate);
+
+    List<Event> findWithReminders(@Param("eventId") Long eventId);
 
     int insert(Event event);
 

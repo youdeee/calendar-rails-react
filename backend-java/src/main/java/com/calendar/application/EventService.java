@@ -22,9 +22,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +40,7 @@ public class EventService {
     private final EventRepository eventRepository;
     private final RecurrenceCodec recurrenceCodec;
     private final EventDtoMapper eventDtoMapper;
+    private final ReminderDispatchService reminderDispatchService;
 
     @Transactional(readOnly = true)
     public List<EventResponse> list(User user, String fromRaw, String toRaw) {
@@ -50,12 +53,22 @@ public class EventService {
             throw new BadRequestException("range too large");
         }
         Instant toBoundary = RecurrenceExpander.endOfUtcDay(to);
+        ZoneId zone = zoneOf(user);
+        LocalDate zoneStartDate = from.atZone(zone).toLocalDate();
+        LocalDate zoneEndDate = toBoundary.atZone(zone).toLocalDate();
         List<EventResponse> occurrences = new ArrayList<>();
-        for (Event event : eventRepository.findCandidates(user.getId(), from, toBoundary)) {
+        for (Event event : eventRepository.findCandidates(user.getId(), from, toBoundary, zoneStartDate, zoneEndDate)) {
             Recurrence recurrence = recurrenceCodec.deserialize(event.getRecurrenceRule());
-            Duration duration = Duration.between(event.getStartAt(), event.getEndAt());
-            for (Instant start : RecurrenceExpander.occurrencesBetween(event, from, to, recurrence)) {
-                occurrences.add(eventDtoMapper.toOccurrence(event, recurrence, start, start.plus(duration)));
+            if (event.isAllDay()) {
+                long durationDays = ChronoUnit.DAYS.between(event.getStartOn(), event.getEndOn());
+                for (LocalDate startOn : RecurrenceExpander.allDayOccurrencesBetween(event, from, to, zone, recurrence)) {
+                    occurrences.add(eventDtoMapper.toAllDayOccurrence(event, recurrence, startOn, startOn.plusDays(durationDays)));
+                }
+            } else {
+                Duration duration = Duration.between(event.getStartAt(), event.getEndAt());
+                for (Instant start : RecurrenceExpander.occurrencesBetween(event, from, to, recurrence)) {
+                    occurrences.add(eventDtoMapper.toOccurrence(event, recurrence, start, start.plus(duration)));
+                }
             }
         }
         return occurrences;
@@ -72,13 +85,18 @@ public class EventService {
         event.setDescription(request.description());
         event.setStartAt(request.startAt());
         event.setEndAt(request.endAt());
+        event.setStartOn(request.startOn());
+        event.setEndOn(request.endOn());
         event.setAllDay(Boolean.TRUE.equals(request.allDay()));
+        event.setReminderMinutes(request.reminderMinutes());
         applyRecurrence(event, true, request.recurrence());
+        applyScheduleKind(event);
         validate(event);
         Instant now = Instant.now();
         event.setCreatedAt(now);
         event.setUpdatedAt(now);
         eventRepository.save(event);
+        reminderDispatchService.dispatchAfterSave(event);
         Recurrence recurrence = recurrenceCodec.deserialize(event.getRecurrenceRule());
         return eventDtoMapper.toResponse(event, recurrence);
     }
@@ -101,15 +119,26 @@ public class EventService {
         if (request.getEndAt() != null) {
             event.setEndAt(request.getEndAt());
         }
+        if (request.getStartOn() != null) {
+            event.setStartOn(request.getStartOn());
+        }
+        if (request.getEndOn() != null) {
+            event.setEndOn(request.getEndOn());
+        }
         if (request.getAllDay() != null) {
             event.setAllDay(request.getAllDay());
+        }
+        if (request.isReminderMinutesSpecified()) {
+            event.setReminderMinutes(request.getReminderMinutes());
         }
         if (request.isRecurrenceSpecified()) {
             applyRecurrence(event, true, request.getRecurrence());
         }
+        applyScheduleKind(event);
         validate(event);
         event.setUpdatedAt(Instant.now());
         eventRepository.save(event);
+        reminderDispatchService.dispatchAfterSave(event);
         Recurrence recurrence = recurrenceCodec.deserialize(event.getRecurrenceRule());
         return eventDtoMapper.toResponse(event, recurrence);
     }
@@ -131,6 +160,16 @@ public class EventService {
         event.setRecurrenceRule(recurrenceCodec.serialize(toRecurrence(params)));
     }
 
+    private static void applyScheduleKind(Event event) {
+        if (event.isAllDay()) {
+            event.setStartAt(null);
+            event.setEndAt(null);
+        } else {
+            event.setStartOn(null);
+            event.setEndOn(null);
+        }
+    }
+
     private Recurrence toRecurrence(RecurrenceParams params) {
         int interval = params.interval() == null ? 0 : params.interval();
         String until = params.until() == null || params.until().isBlank() ? null : params.until();
@@ -149,14 +188,30 @@ public class EventService {
         if (event.getDescription() != null && event.getDescription().length() > DESCRIPTION_MAX) {
             errors.add("Description is too long (maximum is " + DESCRIPTION_MAX + " characters)");
         }
-        if (event.getStartAt() == null) {
-            errors.add("Start at can't be blank");
+        if (event.isAllDay()) {
+            if (event.getStartOn() == null) {
+                errors.add("Start on can't be blank");
+            }
+            if (event.getEndOn() == null) {
+                errors.add("End on can't be blank");
+            }
+            if (event.getStartOn() != null && event.getEndOn() != null && event.getEndOn().isBefore(event.getStartOn())) {
+                errors.add("End on must be on or after start_on");
+            }
+        } else {
+            if (event.getStartAt() == null) {
+                errors.add("Start at can't be blank");
+            }
+            if (event.getEndAt() == null) {
+                errors.add("End at can't be blank");
+            }
+            if (event.getStartAt() != null && event.getEndAt() != null && !event.getEndAt().isAfter(event.getStartAt())) {
+                errors.add("End at must be after start_at");
+            }
         }
-        if (event.getEndAt() == null) {
-            errors.add("End at can't be blank");
-        }
-        if (event.getStartAt() != null && event.getEndAt() != null && !event.getEndAt().isAfter(event.getStartAt())) {
-            errors.add("End at must be after start_at");
+        if (event.getReminderMinutes() != null
+                && (event.getReminderMinutes() < 1 || event.getReminderMinutes() > Event.REMINDER_MINUTES_MAX)) {
+            errors.add("Reminder minutes is not a number");
         }
         if (event.recurring()) {
             validateRecurrence(recurrenceCodec.deserialize(event.getRecurrenceRule()));
@@ -184,6 +239,11 @@ public class EventService {
         if (!errors.isEmpty()) {
             throw new UnprocessableException(String.join(", ", errors));
         }
+    }
+
+    static ZoneId zoneOf(User user) {
+        String timeZone = user.getTimeZone() == null || user.getTimeZone().isBlank() ? "Asia/Tokyo" : user.getTimeZone();
+        return ZoneId.of(timeZone);
     }
 
     private Instant parseDate(String value) {

@@ -12,6 +12,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -42,6 +43,9 @@ public abstract class ApiTestSupport {
     @MockitoBean
     protected GoogleTokenVerifier googleTokenVerifier;
 
+    @MockitoBean
+    protected JavaMailSender javaMailSender;
+
     protected void stubGoogleLogin() {
         when(googleTokenVerifier.verify(anyString())).thenReturn(
                 new GoogleProfile("google-1", "a@example.com", true, "Taro", "https://example.com/a.png"));
@@ -61,6 +65,7 @@ public abstract class ApiTestSupport {
         user.setEmail(email);
         user.setGoogleUid(googleUid);
         user.setName(name);
+        user.setTimeZone("Asia/Tokyo");
         Instant now = Instant.now();
         user.setCreatedAt(now);
         user.setUpdatedAt(now);

@@ -17,6 +17,12 @@ spring:
         write-dates-as-timestamps: false
   flyway:
     enabled: true
+  mail:
+    host: ${MAIL_HOST:127.0.0.1}
+    port: ${MAIL_PORT:1025}
+  task:
+    scheduling:
+      enabled: true
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
