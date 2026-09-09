@@ -9,13 +9,12 @@ import java.time.Instant;
 @Getter
 @Setter
 @EqualsAndHashCode(of = "id")
-public class User {
+public class ReminderDelivery {
     private Long id;
-    private String email;
-    private String googleUid;
-    private String name;
-    private String avatarUrl;
-    private String timeZone;
+    private Long userId;
+    private Long eventId;
+    private Instant occurrenceStartAt;
+    private Instant deliveredAt;
     private Instant createdAt;
     private Instant updatedAt;
 }

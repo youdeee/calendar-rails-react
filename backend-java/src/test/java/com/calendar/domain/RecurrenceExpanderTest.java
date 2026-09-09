@@ -71,6 +71,21 @@ class RecurrenceExpanderTest {
         assertTrue(result.contains(Instant.parse("2026-08-10T00:00:00Z")));
     }
 
+    @Test
+    void allDayEventReturnsCivilDateInZone() {
+        Event event = new Event();
+        event.setAllDay(true);
+        event.setStartOn(LocalDate.of(2026, 8, 10));
+        event.setEndOn(LocalDate.of(2026, 8, 10));
+        List<LocalDate> result = RecurrenceExpander.allDayOccurrencesBetween(
+                event,
+                Instant.parse("2026-08-01T00:00:00Z"),
+                Instant.parse("2026-08-31T00:00:00Z"),
+                java.time.ZoneId.of("Asia/Tokyo"),
+                null);
+        assertEquals(List.of(LocalDate.of(2026, 8, 10)), result);
+    }
+
     private static Event event(String start, String end) {
         Event event = new Event();
         event.setStartAt(Instant.parse(start));

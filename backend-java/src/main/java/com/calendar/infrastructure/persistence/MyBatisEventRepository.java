@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,13 +16,23 @@ public class MyBatisEventRepository implements EventRepository {
     private final EventMapper mapper;
 
     @Override
+    public Optional<Event> findById(Long id) {
+        return Optional.ofNullable(mapper.findById(id));
+    }
+
+    @Override
     public Optional<Event> findByIdAndUserId(Long id, Long userId) {
         return Optional.ofNullable(mapper.findByIdAndUserId(id, userId));
     }
 
     @Override
-    public List<Event> findCandidates(Long userId, Instant from, Instant toBoundary) {
-        return mapper.findCandidates(userId, from, toBoundary);
+    public List<Event> findCandidates(Long userId, Instant from, Instant toBoundary, LocalDate zoneStartDate, LocalDate zoneEndDate) {
+        return mapper.findCandidates(userId, from, toBoundary, zoneStartDate, zoneEndDate);
+    }
+
+    @Override
+    public List<Event> findWithReminders(Long eventId) {
+        return mapper.findWithReminders(eventId);
     }
 
     @Override

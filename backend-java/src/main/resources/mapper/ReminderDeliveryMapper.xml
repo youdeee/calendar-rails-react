@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.calendar.infrastructure.persistence.ReminderDeliveryMapper">
+    <select id="findByEventAndOccurrence" resultType="com.calendar.domain.ReminderDelivery">
+        SELECT id, user_id, event_id, occurrence_start_at, delivered_at, created_at, updated_at
+        FROM reminder_deliveries
+        WHERE event_id = #{eventId} AND occurrence_start_at = #{occurrenceStartAt}
+    </select>
+
+    <insert id="insertIgnore" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO reminder_deliveries (user_id, event_id, occurrence_start_at, created_at, updated_at)
+        VALUES (#{userId}, #{eventId}, #{occurrenceStartAt}, #{createdAt}, #{updatedAt})
+        ON CONFLICT (event_id, occurrence_start_at) DO NOTHING
+    </insert>
+
+    <update id="markDelivered">
+        UPDATE reminder_deliveries
+        SET delivered_at = #{deliveredAt},
+            updated_at = #{deliveredAt}
+        WHERE id = #{id} AND delivered_at IS NULL
+    </update>
+</mapper>

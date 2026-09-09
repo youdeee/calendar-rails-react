@@ -6,6 +6,7 @@ Rails 互換のカレンダー API を Spring Boot で再実装した学習用�
 
 - JDK 21
 - Postgres 16（リポジトリ直下の `docker compose up -d db`）
+- リマインダーメールを見るときだけ Mailpit: `docker compose up -d mailpit`
 
 初回だけ Java 用 DB を作ります（compose の init はボリューム新規作成時のみ実行されます）:
 
@@ -21,7 +22,7 @@ cp .env.example .env   # 必要なら
 ./mvnw spring-boot:run
 ```
 
-既定ポートは `8080`。フロントを繋ぐときは Vite の proxy 先を切り替えます:
+既定ポートは `8080`。プロセス内で毎分リマインダーをスイープし、Mailpit（SMTP `127.0.0.1:1025`）へ送ります。フロントを繋ぐときは Vite の proxy 先を切り替えます:
 
 ```
 cd frontend

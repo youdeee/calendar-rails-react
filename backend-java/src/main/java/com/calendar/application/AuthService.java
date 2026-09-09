@@ -64,6 +64,9 @@ public class AuthService {
         user.setGoogleUid(profile.googleUid());
         user.setName(profile.name() == null || profile.name().isBlank() ? profile.email() : profile.name());
         user.setAvatarUrl(profile.picture());
+        if (user.getTimeZone() == null || user.getTimeZone().isBlank()) {
+            user.setTimeZone("Asia/Tokyo");
+        }
         user.setUpdatedAt(now);
         if (user.getId() == null) {
             user.setCreatedAt(now);
