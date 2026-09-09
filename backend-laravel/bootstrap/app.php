@@ -1,8 +1,10 @@
 <?php
 
+use App\Calendar\ReminderDispatcher;
 use App\Exceptions\InvalidGoogleTokenException;
 use App\Http\Middleware\ApiCors;
 use App\Http\Middleware\ApiRateLimit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -59,4 +61,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json(['error' => ['message' => 'Internal Server Error']], 500);
         });
-    })->create();
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->call(fn () => app(ReminderDispatcher::class)->dispatch(null, now('UTC')))->everyMinute();
+    })
+    ->create();

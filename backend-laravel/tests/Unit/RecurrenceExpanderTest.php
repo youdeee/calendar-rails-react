@@ -91,4 +91,18 @@ class RecurrenceExpanderTest extends TestCase
         $this->assertContains(Carbon::parse('2026-08-03T00:00:00Z')->toIso8601String(), $dates);
         $this->assertContains(Carbon::parse('2026-08-10T00:00:00Z')->toIso8601String(), $dates);
     }
+
+    public function test_all_day_event_returns_civil_date_in_zone(): void
+    {
+        $got = RecurrenceExpander::allDayOccurrencesBetween(
+            Carbon::parse('2026-08-10'),
+            Carbon::parse('2026-08-10'),
+            Carbon::parse('2026-08-01T00:00:00Z'),
+            Carbon::parse('2026-08-31T00:00:00Z'),
+            'Asia/Tokyo',
+            null,
+        );
+        $this->assertCount(1, $got);
+        $this->assertSame('2026-08-10', $got[0]->toDateString());
+    }
 }

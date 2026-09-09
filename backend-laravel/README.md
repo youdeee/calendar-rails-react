@@ -25,7 +25,7 @@ php artisan migrate
 php artisan serve --port=8082
 ```
 
-既定ポートは `8082`。フロントを繋ぐときは Vite の proxy 先を切り替えます:
+既定ポートは `8082`。`php artisan schedule:work` で毎分リマインダーをスイープし、Mailpit（SMTP `127.0.0.1:1025`）へ送ります。フロントを繋ぐときは Vite の proxy 先を切り替えます:
 
 ```
 cd frontend
@@ -46,6 +46,8 @@ VITE_API_PROXY_TARGET=http://localhost:8082 npm run dev
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
 | `COOKIE_SECURE` | `false` | 本番は `true` |
 | `COOKIE_SAME_SITE` | `strict` | 本番（別ドメイン）は `none` |
+| `MAIL_HOST` | `127.0.0.1` | Mailpit SMTP |
+| `MAIL_PORT` | `1025` | |
 
 ## テスト
 

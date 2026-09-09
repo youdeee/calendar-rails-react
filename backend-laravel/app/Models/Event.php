@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Event extends Model
 {
     protected $fillable = [
-        'user_id', 'title', 'description', 'start_at', 'end_at', 'all_day', 'recurrence_rule',
+        'user_id', 'title', 'description', 'start_at', 'end_at', 'start_on', 'end_on',
+        'all_day', 'reminder_minutes', 'recurrence_rule',
     ];
 
     protected function casts(): array
@@ -16,7 +17,10 @@ class Event extends Model
         return [
             'start_at' => 'datetime',
             'end_at' => 'datetime',
+            'start_on' => 'date',
+            'end_on' => 'date',
             'all_day' => 'boolean',
+            'reminder_minutes' => 'integer',
         ];
     }
 
