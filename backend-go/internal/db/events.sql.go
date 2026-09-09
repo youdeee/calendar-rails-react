@@ -27,8 +27,35 @@ func (q *Queries) DeleteEvent(ctx context.Context, arg DeleteEventParams) (int64
 	return result.RowsAffected(), nil
 }
 
+const findEventByID = `-- name: FindEventByID :one
+SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at, start_on, end_on, reminder_minutes
+FROM events
+WHERE id = $1
+`
+
+func (q *Queries) FindEventByID(ctx context.Context, id int64) (Event, error) {
+	row := q.db.QueryRow(ctx, findEventByID, id)
+	var i Event
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Description,
+		&i.StartAt,
+		&i.EndAt,
+		&i.AllDay,
+		&i.RecurrenceRule,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StartOn,
+		&i.EndOn,
+		&i.ReminderMinutes,
+	)
+	return i, err
+}
+
 const findEventByIDAndUserID = `-- name: FindEventByIDAndUserID :one
-SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at
+SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at, start_on, end_on, reminder_minutes
 FROM events
 WHERE id = $1 AND user_id = $2
 `
@@ -52,28 +79,41 @@ func (q *Queries) FindEventByIDAndUserID(ctx context.Context, arg FindEventByIDA
 		&i.RecurrenceRule,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartOn,
+		&i.EndOn,
+		&i.ReminderMinutes,
 	)
 	return i, err
 }
 
 const findEventCandidates = `-- name: FindEventCandidates :many
-SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at
+SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at, start_on, end_on, reminder_minutes
 FROM events
 WHERE user_id = $1
   AND (
-    (recurrence_rule IS NULL AND start_at <= $2 AND end_at >= $3)
-    OR (recurrence_rule IS NOT NULL AND start_at <= $2)
+    (all_day = FALSE AND recurrence_rule IS NULL AND start_at <= $2 AND end_at >= $3)
+    OR (all_day = FALSE AND recurrence_rule IS NOT NULL AND start_at <= $2)
+    OR (all_day = TRUE AND recurrence_rule IS NULL AND start_on <= $4 AND end_on >= $5)
+    OR (all_day = TRUE AND recurrence_rule IS NOT NULL AND start_on <= $4)
   )
 `
 
 type FindEventCandidatesParams struct {
-	UserID     int64
-	ToBoundary time.Time
-	RangeFrom  time.Time
+	UserID        int64
+	ToBoundary    *time.Time
+	RangeFrom     *time.Time
+	ZoneEndDate   *time.Time
+	ZoneStartDate *time.Time
 }
 
 func (q *Queries) FindEventCandidates(ctx context.Context, arg FindEventCandidatesParams) ([]Event, error) {
-	rows, err := q.db.Query(ctx, findEventCandidates, arg.UserID, arg.ToBoundary, arg.RangeFrom)
+	rows, err := q.db.Query(ctx, findEventCandidates,
+		arg.UserID,
+		arg.ToBoundary,
+		arg.RangeFrom,
+		arg.ZoneEndDate,
+		arg.ZoneStartDate,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +132,50 @@ func (q *Queries) FindEventCandidates(ctx context.Context, arg FindEventCandidat
 			&i.RecurrenceRule,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StartOn,
+			&i.EndOn,
+			&i.ReminderMinutes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findEventsWithReminders = `-- name: FindEventsWithReminders :many
+SELECT id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at, start_on, end_on, reminder_minutes
+FROM events
+WHERE reminder_minutes IS NOT NULL
+  AND ($1::bigint IS NULL OR id = $1)
+`
+
+func (q *Queries) FindEventsWithReminders(ctx context.Context, id *int64) ([]Event, error) {
+	rows, err := q.db.Query(ctx, findEventsWithReminders, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Event{}
+	for rows.Next() {
+		var i Event
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.StartAt,
+			&i.EndAt,
+			&i.AllDay,
+			&i.RecurrenceRule,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StartOn,
+			&i.EndOn,
+			&i.ReminderMinutes,
 		); err != nil {
 			return nil, err
 		}
@@ -104,21 +188,24 @@ func (q *Queries) FindEventCandidates(ctx context.Context, arg FindEventCandidat
 }
 
 const insertEvent = `-- name: InsertEvent :one
-INSERT INTO events (user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at
+INSERT INTO events (user_id, title, description, start_at, end_at, start_on, end_on, all_day, reminder_minutes, recurrence_rule, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at, start_on, end_on, reminder_minutes
 `
 
 type InsertEventParams struct {
-	UserID         int64
-	Title          string
-	Description    *string
-	StartAt        time.Time
-	EndAt          time.Time
-	AllDay         bool
-	RecurrenceRule *string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	UserID          int64
+	Title           string
+	Description     *string
+	StartAt         *time.Time
+	EndAt           *time.Time
+	StartOn         *time.Time
+	EndOn           *time.Time
+	AllDay          bool
+	ReminderMinutes *int32
+	RecurrenceRule  *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (Event, error) {
@@ -128,7 +215,10 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (Event
 		arg.Description,
 		arg.StartAt,
 		arg.EndAt,
+		arg.StartOn,
+		arg.EndOn,
 		arg.AllDay,
+		arg.ReminderMinutes,
 		arg.RecurrenceRule,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -145,6 +235,9 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (Event
 		&i.RecurrenceRule,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartOn,
+		&i.EndOn,
+		&i.ReminderMinutes,
 	)
 	return i, err
 }
@@ -155,23 +248,29 @@ SET title = $3,
     description = $4,
     start_at = $5,
     end_at = $6,
-    all_day = $7,
-    recurrence_rule = $8,
-    updated_at = $9
+    start_on = $7,
+    end_on = $8,
+    all_day = $9,
+    reminder_minutes = $10,
+    recurrence_rule = $11,
+    updated_at = $12
 WHERE id = $1 AND user_id = $2
-RETURNING id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at
+RETURNING id, user_id, title, description, start_at, end_at, all_day, recurrence_rule, created_at, updated_at, start_on, end_on, reminder_minutes
 `
 
 type UpdateEventParams struct {
-	ID             int64
-	UserID         int64
-	Title          string
-	Description    *string
-	StartAt        time.Time
-	EndAt          time.Time
-	AllDay         bool
-	RecurrenceRule *string
-	UpdatedAt      time.Time
+	ID              int64
+	UserID          int64
+	Title           string
+	Description     *string
+	StartAt         *time.Time
+	EndAt           *time.Time
+	StartOn         *time.Time
+	EndOn           *time.Time
+	AllDay          bool
+	ReminderMinutes *int32
+	RecurrenceRule  *string
+	UpdatedAt       time.Time
 }
 
 func (q *Queries) UpdateEvent(ctx context.Context, arg UpdateEventParams) (Event, error) {
@@ -182,7 +281,10 @@ func (q *Queries) UpdateEvent(ctx context.Context, arg UpdateEventParams) (Event
 		arg.Description,
 		arg.StartAt,
 		arg.EndAt,
+		arg.StartOn,
+		arg.EndOn,
 		arg.AllDay,
+		arg.ReminderMinutes,
 		arg.RecurrenceRule,
 		arg.UpdatedAt,
 	)
@@ -198,6 +300,9 @@ func (q *Queries) UpdateEvent(ctx context.Context, arg UpdateEventParams) (Event
 		&i.RecurrenceRule,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartOn,
+		&i.EndOn,
+		&i.ReminderMinutes,
 	)
 	return i, err
 }

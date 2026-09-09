@@ -75,7 +75,27 @@ func toAuthJSON(session auth.Session) authJSON {
 }
 
 func toUserJSON(user auth.User) userJSON {
-	return userJSON{ID: user.ID, Email: user.Email, Name: user.Name, AvatarURL: user.AvatarURL}
+	return userJSON{ID: user.ID, Email: user.Email, Name: user.Name, AvatarURL: user.AvatarURL, TimeZone: user.TimeZone}
+}
+
+func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		TimeZone *string `json:"time_zone"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
+		writeError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+	if body.TimeZone == nil || *body.TimeZone == "" {
+		writeError(w, http.StatusBadRequest, "param is missing or the value is empty: time_zone")
+		return
+	}
+	user, err := s.auth.UpdateTimeZone(r.Context(), userFrom(r.Context()).ID, *body.TimeZone)
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toUserJSON(user))
 }
 
 func (s *Server) writeRefreshCookie(w http.ResponseWriter, value string, maxAge int) {

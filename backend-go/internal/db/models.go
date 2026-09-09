@@ -9,16 +9,19 @@ import (
 )
 
 type Event struct {
-	ID             int64
-	UserID         int64
-	Title          string
-	Description    *string
-	StartAt        time.Time
-	EndAt          time.Time
-	AllDay         bool
-	RecurrenceRule *string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID              int64
+	UserID          int64
+	Title           string
+	Description     *string
+	StartAt         *time.Time
+	EndAt           *time.Time
+	AllDay          bool
+	RecurrenceRule  *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	StartOn         *time.Time
+	EndOn           *time.Time
+	ReminderMinutes *int32
 }
 
 type RefreshToken struct {
@@ -31,6 +34,16 @@ type RefreshToken struct {
 	UpdatedAt   time.Time
 }
 
+type ReminderDelivery struct {
+	ID                int64
+	UserID            int64
+	EventID           int64
+	OccurrenceStartAt time.Time
+	DeliveredAt       *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type User struct {
 	ID        int64
 	Email     string
@@ -39,4 +52,5 @@ type User struct {
 	AvatarUrl *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	TimeZone  string
 }

@@ -34,6 +34,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/refresh", s.refresh)
 	mux.HandleFunc("DELETE /api/auth/logout", s.logout)
 	mux.Handle("GET /api/me", s.requireAuth(s.me))
+	mux.Handle("PATCH /api/me", s.requireAuth(s.updateMe))
 	mux.Handle("GET /api/events", s.requireAuth(s.listEvents))
 	mux.Handle("POST /api/events", s.requireAuth(s.createEvent))
 	mux.Handle("PATCH /api/events/{id}", s.requireAuth(s.updateEvent))
@@ -94,6 +95,11 @@ func handleErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, event.ErrNotFound):
 		writeError(w, http.StatusNotFound, event.ErrNotFound.Error())
 	default:
+		var authAPI auth.APIError
+		if errors.As(err, &authAPI) {
+			writeError(w, authAPI.Status, authAPI.Message)
+			return
+		}
 		var api event.APIError
 		if errors.As(err, &api) {
 			writeError(w, api.Status, api.Message)

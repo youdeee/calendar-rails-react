@@ -34,6 +34,7 @@ type harness struct {
 	auth    *auth.Service
 	q       *db.Queries
 	google  *stubGoogle
+	mailer  *event.RecordingMailer
 }
 
 type stubGoogle struct {
@@ -77,11 +78,13 @@ func TestMain(m *testing.M) {
 	google := &stubGoogle{}
 	cfg := testConfig()
 	authSvc := auth.NewService(q, google, cfg.JWTSecret, cfg.AccessTokenTTL)
+	mailer := &event.RecordingMailer{}
 	testH = &harness{
-		handler: New(cfg, authSvc, event.NewService(q)).Handler(),
+		handler: New(cfg, authSvc, event.NewService(q, mailer)).Handler(),
 		auth:    authSvc,
 		q:       q,
 		google:  google,
+		mailer:  mailer,
 	}
 	code := m.Run()
 	pool.Close()
@@ -172,13 +175,14 @@ func persistUser(t *testing.T, email, googleUID, name string) auth.User {
 		Email:     email,
 		GoogleUid: googleUID,
 		Name:      name,
+		TimeZone:  "Asia/Tokyo",
 		CreatedAt: now,
 		UpdatedAt: now,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return auth.User{ID: row.ID, Email: row.Email, GoogleUID: row.GoogleUid, Name: row.Name, AvatarURL: row.AvatarUrl}
+	return auth.User{ID: row.ID, Email: row.Email, GoogleUID: row.GoogleUid, Name: row.Name, AvatarURL: row.AvatarUrl, TimeZone: row.TimeZone}
 }
 
 func persistRandomUser(t *testing.T) auth.User {
