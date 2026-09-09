@@ -250,6 +250,54 @@ func TestCannotDeleteOtherUsersEvent(t *testing.T) {
 	}
 }
 
+func TestCreatesAllDayEventFromStartOnAndEndOn(t *testing.T) {
+	user := persistRandomUser(t)
+	rec := do(http.MethodPost, "/api/events",
+		`{"event":{"title":"Holiday","all_day":true,"start_on":"2026-08-10","end_on":"2026-08-12","reminder_minutes":360}}`,
+		authHeader(t, user))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	body := jsonBody(t, rec)
+	if body["all_day"] != true || body["start_on"] != "2026-08-10" || body["end_on"] != "2026-08-12" {
+		t.Fatalf("body %s", rec.Body.String())
+	}
+	if body["start_at"] != nil {
+		t.Fatalf("start_at %v", body["start_at"])
+	}
+	if body["reminder_minutes"] != float64(360) {
+		t.Fatalf("reminder_minutes %v", body["reminder_minutes"])
+	}
+}
+
+func TestListsAllDayEventInRange(t *testing.T) {
+	user := persistRandomUser(t)
+	rec := do(http.MethodPost, "/api/events",
+		`{"event":{"title":"Holiday","all_day":true,"start_on":"2026-08-10","end_on":"2026-08-10"}}`,
+		authHeader(t, user))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	rec = do(http.MethodGet, "/api/events?from=2026-08-01&to=2026-08-31", "", authHeader(t, user))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	arr := jsonArray(t, rec)
+	if len(arr) == 0 || arr[0].(map[string]any)["title"] != "Holiday" || arr[0].(map[string]any)["start_on"] != "2026-08-10" {
+		t.Fatalf("body %s", rec.Body.String())
+	}
+}
+
+func TestRejectsReminderMinutesAboveThirtyDays(t *testing.T) {
+	user := persistRandomUser(t)
+	rec := do(http.MethodPost, "/api/events",
+		`{"event":{"title":"Lunch","start_at":"2026-08-10T12:00:00+09:00","end_at":"2026-08-10T13:00:00+09:00","reminder_minutes":43201}}`,
+		authHeader(t, user))
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+}
+
 func createEvent(t *testing.T, owner auth.User, title, start, end, recurrenceJSON string) map[string]any {
 	t.Helper()
 	recurrence := ""

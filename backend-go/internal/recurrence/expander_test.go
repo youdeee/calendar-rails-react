@@ -74,6 +74,18 @@ func TestIncludesRecurringMultiDayOccurrenceStartingBeforeRange(t *testing.T) {
 	}
 }
 
+func TestAllDayEventReturnsCivilDateInZone(t *testing.T) {
+	startOn := time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC)
+	loc, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := AllDayOccurrencesBetween(startOn, startOn, parse(t, "2026-08-01T00:00:00Z"), parse(t, "2026-08-31T00:00:00Z"), loc, nil)
+	if len(got) != 1 || !got[0].Equal(startOn) {
+		t.Fatalf("got %v", got)
+	}
+}
+
 func parse(t *testing.T, s string) time.Time {
 	t.Helper()
 	v, err := time.Parse(time.RFC3339, s)

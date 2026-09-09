@@ -39,6 +39,7 @@ type User struct {
 	GoogleUID string
 	Name      string
 	AvatarURL *string
+	TimeZone  string
 }
 
 type Session struct {
@@ -183,6 +184,7 @@ func (s *Service) upsertUser(ctx context.Context, profile Profile) (User, error)
 			GoogleUid: profile.GoogleUID,
 			Name:      name,
 			AvatarUrl: avatar,
+			TimeZone:  "Asia/Tokyo",
 			CreatedAt: now,
 			UpdatedAt: now,
 		})
@@ -197,6 +199,7 @@ func (s *Service) upsertUser(ctx context.Context, profile Profile) (User, error)
 		GoogleUid: profile.GoogleUID,
 		Name:      name,
 		AvatarUrl: avatar,
+		TimeZone:  existing.TimeZone,
 		UpdatedAt: now,
 	})
 	if err != nil {
@@ -230,14 +233,49 @@ func (s *Service) issueSession(ctx context.Context, user User) (Session, error) 
 }
 
 func userFromRow(row db.User) User {
+	tz := row.TimeZone
+	if tz == "" {
+		tz = "Asia/Tokyo"
+	}
 	return User{
 		ID:        row.ID,
 		Email:     row.Email,
 		GoogleUID: row.GoogleUid,
 		Name:      row.Name,
 		AvatarURL: row.AvatarUrl,
+		TimeZone:  tz,
 	}
 }
+
+func (s *Service) UpdateTimeZone(ctx context.Context, userID int64, timeZone string) (User, error) {
+	if _, err := time.LoadLocation(timeZone); err != nil {
+		return User{}, APIError{Status: 422, Message: "Time zone is not a valid time zone"}
+	}
+	existing, err := s.q.FindUserByID(ctx, userID)
+	if err != nil {
+		return User{}, err
+	}
+	row, err := s.q.UpdateUser(ctx, db.UpdateUserParams{
+		ID:        existing.ID,
+		Email:     existing.Email,
+		GoogleUid: existing.GoogleUid,
+		Name:      existing.Name,
+		AvatarUrl: existing.AvatarUrl,
+		TimeZone:  timeZone,
+		UpdatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return User{}, err
+	}
+	return userFromRow(row), nil
+}
+
+type APIError struct {
+	Status  int
+	Message string
+}
+
+func (e APIError) Error() string { return e.Message }
 
 func digest(raw string) string {
 	sum := sha256.Sum256([]byte(raw))

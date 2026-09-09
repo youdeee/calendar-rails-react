@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/youdeee/calendar-rails-react/backend-go/internal/event"
@@ -116,6 +118,27 @@ func decodeCreate(r *http.Request) (event.CreateInput, error) {
 		}
 		in.AllDay = &b
 	}
+	if v, ok := fields["start_on"]; ok {
+		t, err := unmarshalDate(v)
+		if err != nil {
+			return event.CreateInput{}, err
+		}
+		in.StartOn = t
+	}
+	if v, ok := fields["end_on"]; ok {
+		t, err := unmarshalDate(v)
+		if err != nil {
+			return event.CreateInput{}, err
+		}
+		in.EndOn = t
+	}
+	if v, ok := fields["reminder_minutes"]; ok {
+		n, err := unmarshalInt32Ptr(v)
+		if err != nil {
+			return event.CreateInput{}, err
+		}
+		in.ReminderMinutes = n
+	}
 	if recRaw, ok := fields["recurrence"]; ok {
 		rec, err := parseRecurrenceRaw(recRaw)
 		if err != nil {
@@ -166,6 +189,28 @@ func decodeUpdate(r *http.Request) (event.UpdateInput, error) {
 			return event.UpdateInput{}, err
 		}
 		in.AllDay = &b
+	}
+	if v, ok := fields["start_on"]; ok {
+		t, err := unmarshalDate(v)
+		if err != nil {
+			return event.UpdateInput{}, err
+		}
+		in.StartOn = t
+	}
+	if v, ok := fields["end_on"]; ok {
+		t, err := unmarshalDate(v)
+		if err != nil {
+			return event.UpdateInput{}, err
+		}
+		in.EndOn = t
+	}
+	if v, ok := fields["reminder_minutes"]; ok {
+		n, err := unmarshalInt32Ptr(v)
+		if err != nil {
+			return event.UpdateInput{}, err
+		}
+		in.ReminderMinutesSpecified = true
+		in.ReminderMinutes = n
 	}
 	if recRaw, ok := fields["recurrence"]; ok {
 		rec, err := parseRecurrenceRaw(recRaw)
@@ -229,14 +274,17 @@ func toEventJSON(item event.EventResponse) eventJSON {
 		}
 	}
 	return eventJSON{
-		ID:          item.ID,
-		Title:       item.Title,
-		Description: item.Description,
-		StartAt:     item.StartAt,
-		EndAt:       item.EndAt,
-		AllDay:      item.AllDay,
-		Recurring:   item.Recurring,
-		Recurrence:  rec,
+		ID:              item.ID,
+		Title:           item.Title,
+		Description:     item.Description,
+		StartAt:         item.StartAt,
+		EndAt:           item.EndAt,
+		StartOn:         item.StartOn,
+		EndOn:           item.EndOn,
+		AllDay:          item.AllDay,
+		ReminderMinutes: item.ReminderMinutes,
+		Recurring:       item.Recurring,
+		Recurrence:      rec,
 	}
 }
 
@@ -266,6 +314,49 @@ func unmarshalBool(raw json.RawMessage) (bool, error) {
 		return false, eventBadRequest("invalid request")
 	}
 	return b, nil
+}
+
+func unmarshalDate(raw json.RawMessage) (*time.Time, error) {
+	if string(raw) == "null" {
+		return nil, eventBadRequest("invalid request")
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil, eventBadRequest("invalid request")
+	}
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return nil, eventBadRequest("invalid request")
+	}
+	return &t, nil
+}
+
+func unmarshalInt32Ptr(raw json.RawMessage) (*int32, error) {
+	if string(raw) == "null" {
+		return nil, nil
+	}
+	if len(raw) > 0 && raw[0] == '"' {
+		var s string
+		if err := json.Unmarshal(raw, &s); err != nil {
+			return nil, eventBadRequest("invalid request")
+		}
+		if strings.TrimSpace(s) == "" {
+			return nil, nil
+		}
+		n, err := strconv.Atoi(strings.TrimSpace(s))
+		if err != nil {
+			z := int32(0)
+			return &z, nil
+		}
+		v := int32(n)
+		return &v, nil
+	}
+	var n float64
+	if err := json.Unmarshal(raw, &n); err != nil {
+		return nil, eventBadRequest("invalid request")
+	}
+	v := int32(n)
+	return &v, nil
 }
 
 func unmarshalTime(raw json.RawMessage) (*time.Time, error) {

@@ -136,6 +136,82 @@ func OccurrencesBetween(startAt, endAt, rangeStart, rangeEnd time.Time, rule *Ru
 	return occurrences
 }
 
+func AllDayOccurrencesBetween(startOn, endOn, rangeStart, rangeEnd time.Time, loc *time.Location, rule *Rule) []time.Time {
+	inclusiveRangeEnd := EndOfUTCDay(rangeEnd)
+	durationDays := civilDays(endOn) - civilDays(startOn)
+	if rule == nil {
+		if SpansInstantRange(startOn, endOn, rangeStart, inclusiveRangeEnd, loc) {
+			return []time.Time{civilUTC(startOn)}
+		}
+		return nil
+	}
+
+	var untilDate time.Time
+	hasUntil := false
+	if rule.Until != "" {
+		parsed, err := time.Parse("2006-01-02", rule.Until)
+		if err == nil {
+			untilDate = parsed
+			hasUntil = true
+		}
+	}
+
+	occurrences := make([]time.Time, 0)
+	cursor := civilUTC(startOn)
+	for safety := 0; safety < 10_000; safety++ {
+		utcMidnight := cursor
+		if utcMidnight.After(inclusiveRangeEnd) {
+			break
+		}
+		if hasUntil && cursor.After(untilDate) {
+			break
+		}
+		occurrenceEndOn := cursor.AddDate(0, 0, durationDays)
+		if SpansInstantRange(cursor, occurrenceEndOn, rangeStart, inclusiveRangeEnd, loc) {
+			occurrences = append(occurrences, cursor)
+			if len(occurrences) >= maxOccurrences {
+				break
+			}
+		}
+		cursor = nextDate(cursor, rule.Frequency, rule.Interval)
+	}
+	return occurrences
+}
+
+func SpansInstantRange(firstOn, lastOn, rangeStart, inclusiveRangeEnd time.Time, loc *time.Location) bool {
+	starts := AllDayStartInstant(firstOn, loc)
+	ends := AllDayStartInstant(lastOn, loc).AddDate(0, 0, 1)
+	return starts.Before(inclusiveRangeEnd) && ends.After(rangeStart)
+}
+
+func AllDayStartInstant(occurrenceOn time.Time, loc *time.Location) time.Time {
+	y, m, d := occurrenceOn.UTC().Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, loc)
+}
+
+func civilUTC(t time.Time) time.Time {
+	y, m, d := t.UTC().Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
+func civilDays(t time.Time) int {
+	return int(civilUTC(t).Unix() / 86400)
+}
+
+func nextDate(cursor time.Time, frequency string, interval int) time.Time {
+	c := civilUTC(cursor)
+	switch frequency {
+	case "daily":
+		return c.AddDate(0, 0, interval)
+	case "weekly":
+		return c.AddDate(0, 0, 7*interval)
+	case "monthly":
+		return c.AddDate(0, interval, 0)
+	default:
+		return c.AddDate(0, 0, interval)
+	}
+}
+
 func nextOccurrence(cursor time.Time, frequency string, interval int) time.Time {
 	c := cursor.In(time.UTC)
 	switch frequency {

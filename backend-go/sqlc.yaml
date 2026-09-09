@@ -20,3 +20,12 @@ sql:
               import: "time"
               type: "Time"
               pointer: true
+          - db_type: "date"
+            nullable: false
+            go_type: "time.Time"
+          - db_type: "date"
+            nullable: true
+            go_type:
+              import: "time"
+              type: "Time"
+              pointer: true

@@ -17,6 +17,8 @@ type Config struct {
 	FrontendOrigin string
 	CookieSecure   bool
 	CookieSameSite string
+	MailHost       string
+	MailPort       string
 	RateLimit      RateLimit
 }
 
@@ -36,6 +38,8 @@ func Load() (Config, error) {
 		FrontendOrigin: env("FRONTEND_ORIGIN", "http://localhost:5173"),
 		CookieSecure:   envBool("COOKIE_SECURE", false),
 		CookieSameSite: env("COOKIE_SAME_SITE", "Strict"),
+		MailHost:       env("MAIL_HOST", "127.0.0.1"),
+		MailPort:       env("MAIL_PORT", "1025"),
 		RateLimit: RateLimit{
 			Enabled:                envBool("RATE_LIMIT_ENABLED", true),
 			LoginPerMinute:         10,

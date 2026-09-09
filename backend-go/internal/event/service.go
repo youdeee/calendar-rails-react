@@ -15,6 +15,8 @@ import (
 
 var ErrNotFound = errors.New("Not Found")
 
+const reminderMinutesMax int32 = 43_200
+
 type APIError struct {
 	Status  int
 	Message string
@@ -32,41 +34,55 @@ type RecurrenceParams struct {
 }
 
 type EventResponse struct {
-	ID          int64
-	Title       string
-	Description *string
-	StartAt     time.Time
-	EndAt       time.Time
-	AllDay      bool
-	Recurring   bool
-	Recurrence  *RecurrenceParams
+	ID              int64
+	Title           string
+	Description     *string
+	StartAt         *time.Time
+	EndAt           *time.Time
+	StartOn         *string
+	EndOn           *string
+	AllDay          bool
+	ReminderMinutes *int32
+	Recurring       bool
+	Recurrence      *RecurrenceParams
 }
 
 type CreateInput struct {
-	Title       *string
-	Description *string
-	StartAt     *time.Time
-	EndAt       *time.Time
-	AllDay      *bool
-	Recurrence  *RecurrenceParams
+	Title           *string
+	Description     *string
+	StartAt         *time.Time
+	EndAt           *time.Time
+	StartOn         *time.Time
+	EndOn           *time.Time
+	AllDay          *bool
+	ReminderMinutes *int32
+	Recurrence      *RecurrenceParams
 }
 
 type UpdateInput struct {
-	Title               *string
-	Description         *string
-	StartAt             *time.Time
-	EndAt               *time.Time
-	AllDay              *bool
-	Recurrence          *RecurrenceParams
-	RecurrenceSpecified bool
+	Title                    *string
+	Description              *string
+	StartAt                  *time.Time
+	EndAt                    *time.Time
+	StartOn                  *time.Time
+	EndOn                    *time.Time
+	AllDay                   *bool
+	ReminderMinutes          *int32
+	ReminderMinutesSpecified bool
+	Recurrence               *RecurrenceParams
+	RecurrenceSpecified      bool
 }
 
 type Service struct {
-	q *db.Queries
+	q      *db.Queries
+	mailer Mailer
 }
 
-func NewService(q *db.Queries) *Service {
-	return &Service{q: q}
+func NewService(q *db.Queries, mailer Mailer) *Service {
+	if mailer == nil {
+		mailer = NopMailer{}
+	}
+	return &Service{q: q, mailer: mailer}
 }
 
 func (s *Service) List(ctx context.Context, user auth.User, fromRaw, toRaw string) ([]EventResponse, error) {
@@ -85,10 +101,15 @@ func (s *Service) List(ctx context.Context, user auth.User, fromRaw, toRaw strin
 		return nil, badRequest("range too large")
 	}
 	toBoundary := recurrence.EndOfUTCDay(to)
+	loc := locationOf(user.TimeZone)
+	zoneStart := civilIn(from, loc)
+	zoneEnd := civilIn(toBoundary, loc)
 	rows, err := s.q.FindEventCandidates(ctx, db.FindEventCandidatesParams{
-		UserID:     user.ID,
-		RangeFrom:  from,
-		ToBoundary: toBoundary,
+		UserID:        user.ID,
+		RangeFrom:     &from,
+		ToBoundary:    &toBoundary,
+		ZoneStartDate: &zoneStart,
+		ZoneEndDate:   &zoneEnd,
 	})
 	if err != nil {
 		return nil, err
@@ -99,9 +120,23 @@ func (s *Service) List(ctx context.Context, user auth.User, fromRaw, toRaw strin
 		if err != nil {
 			return nil, err
 		}
-		duration := row.EndAt.Sub(row.StartAt)
-		for _, start := range recurrence.OccurrencesBetween(row.StartAt, row.EndAt, from, to, rule) {
-			out = append(out, toResponse(row, rule, start, start.Add(duration)))
+		if row.AllDay {
+			if row.StartOn == nil || row.EndOn == nil {
+				continue
+			}
+			durationDays := int(row.EndOn.UTC().Sub(row.StartOn.UTC()).Hours() / 24)
+			for _, startOn := range recurrence.AllDayOccurrencesBetween(*row.StartOn, *row.EndOn, from, to, loc, rule) {
+				endOn := startOn.AddDate(0, 0, durationDays)
+				out = append(out, toAllDayResponse(row, rule, startOn, endOn))
+			}
+			continue
+		}
+		if row.StartAt == nil || row.EndAt == nil {
+			continue
+		}
+		duration := row.EndAt.Sub(*row.StartAt)
+		for _, start := range recurrence.OccurrencesBetween(*row.StartAt, *row.EndAt, from, to, rule) {
+			out = append(out, toTimedResponse(row, rule, start, start.Add(duration)))
 		}
 	}
 	return out, nil
@@ -109,45 +144,45 @@ func (s *Service) List(ctx context.Context, user auth.User, fromRaw, toRaw strin
 
 func (s *Service) Create(ctx context.Context, user auth.User, in CreateInput) (EventResponse, error) {
 	row := db.Event{
-		UserID: user.ID,
-		AllDay: in.AllDay != nil && *in.AllDay,
+		UserID:          user.ID,
+		AllDay:          in.AllDay != nil && *in.AllDay,
+		ReminderMinutes: in.ReminderMinutes,
 	}
 	if in.Title != nil {
 		row.Title = *in.Title
 	}
 	row.Description = in.Description
-	if in.StartAt != nil {
-		row.StartAt = in.StartAt.UTC()
-	}
-	if in.EndAt != nil {
-		row.EndAt = in.EndAt.UTC()
-	}
+	row.StartAt = utcPtr(in.StartAt)
+	row.EndAt = utcPtr(in.EndAt)
+	row.StartOn = civilPtr(in.StartOn)
+	row.EndOn = civilPtr(in.EndOn)
 	if err := applyRecurrence(&row, true, in.Recurrence); err != nil {
 		return EventResponse{}, err
 	}
+	applyScheduleKind(&row)
 	if err := validate(row); err != nil {
 		return EventResponse{}, err
 	}
 	now := time.Now().UTC()
 	saved, err := s.q.InsertEvent(ctx, db.InsertEventParams{
-		UserID:         row.UserID,
-		Title:          row.Title,
-		Description:    row.Description,
-		StartAt:        row.StartAt,
-		EndAt:          row.EndAt,
-		AllDay:         row.AllDay,
-		RecurrenceRule: row.RecurrenceRule,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		UserID:          row.UserID,
+		Title:           row.Title,
+		Description:     row.Description,
+		StartAt:         row.StartAt,
+		EndAt:           row.EndAt,
+		StartOn:         row.StartOn,
+		EndOn:           row.EndOn,
+		AllDay:          row.AllDay,
+		ReminderMinutes: row.ReminderMinutes,
+		RecurrenceRule:  row.RecurrenceRule,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	})
 	if err != nil {
 		return EventResponse{}, err
 	}
-	rule, err := decodeRule(saved.RecurrenceRule)
-	if err != nil {
-		return EventResponse{}, err
-	}
-	return toResponse(saved, rule, saved.StartAt, saved.EndAt), nil
+	_ = s.Dispatch(ctx, &saved.ID, time.Now().UTC())
+	return toResponse(saved)
 }
 
 func (s *Service) Update(ctx context.Context, user auth.User, id int64, in UpdateInput) (EventResponse, error) {
@@ -165,41 +200,51 @@ func (s *Service) Update(ctx context.Context, user auth.User, id int64, in Updat
 		row.Description = in.Description
 	}
 	if in.StartAt != nil {
-		row.StartAt = in.StartAt.UTC()
+		row.StartAt = utcPtr(in.StartAt)
 	}
 	if in.EndAt != nil {
-		row.EndAt = in.EndAt.UTC()
+		row.EndAt = utcPtr(in.EndAt)
+	}
+	if in.StartOn != nil {
+		row.StartOn = civilPtr(in.StartOn)
+	}
+	if in.EndOn != nil {
+		row.EndOn = civilPtr(in.EndOn)
 	}
 	if in.AllDay != nil {
 		row.AllDay = *in.AllDay
+	}
+	if in.ReminderMinutesSpecified {
+		row.ReminderMinutes = in.ReminderMinutes
 	}
 	if in.RecurrenceSpecified {
 		if err := applyRecurrence(&row, true, in.Recurrence); err != nil {
 			return EventResponse{}, err
 		}
 	}
+	applyScheduleKind(&row)
 	if err := validate(row); err != nil {
 		return EventResponse{}, err
 	}
 	saved, err := s.q.UpdateEvent(ctx, db.UpdateEventParams{
-		ID:             row.ID,
-		UserID:         row.UserID,
-		Title:          row.Title,
-		Description:    row.Description,
-		StartAt:        row.StartAt,
-		EndAt:          row.EndAt,
-		AllDay:         row.AllDay,
-		RecurrenceRule: row.RecurrenceRule,
-		UpdatedAt:      time.Now().UTC(),
+		ID:              row.ID,
+		UserID:          row.UserID,
+		Title:           row.Title,
+		Description:     row.Description,
+		StartAt:         row.StartAt,
+		EndAt:           row.EndAt,
+		StartOn:         row.StartOn,
+		EndOn:           row.EndOn,
+		AllDay:          row.AllDay,
+		ReminderMinutes: row.ReminderMinutes,
+		RecurrenceRule:  row.RecurrenceRule,
+		UpdatedAt:       time.Now().UTC(),
 	})
 	if err != nil {
 		return EventResponse{}, err
 	}
-	rule, err := decodeRule(saved.RecurrenceRule)
-	if err != nil {
-		return EventResponse{}, err
-	}
-	return toResponse(saved, rule, saved.StartAt, saved.EndAt), nil
+	_ = s.Dispatch(ctx, &saved.ID, time.Now().UTC())
+	return toResponse(saved)
 }
 
 func (s *Service) Delete(ctx context.Context, user auth.User, id int64) error {
@@ -233,6 +278,16 @@ func applyRecurrence(row *db.Event, specified bool, params *RecurrenceParams) er
 	return nil
 }
 
+func applyScheduleKind(row *db.Event) {
+	if row.AllDay {
+		row.StartAt = nil
+		row.EndAt = nil
+	} else {
+		row.StartOn = nil
+		row.EndOn = nil
+	}
+}
+
 func toRule(params *RecurrenceParams) (*recurrence.Rule, error) {
 	until := ""
 	if params.Until != nil {
@@ -255,14 +310,29 @@ func validate(row db.Event) error {
 	if row.Description != nil && len(*row.Description) > 5000 {
 		errs = append(errs, "Description is too long (maximum is 5000 characters)")
 	}
-	if row.StartAt.IsZero() {
-		errs = append(errs, "Start at can't be blank")
+	if row.AllDay {
+		if row.StartOn == nil {
+			errs = append(errs, "Start on can't be blank")
+		}
+		if row.EndOn == nil {
+			errs = append(errs, "End on can't be blank")
+		}
+		if row.StartOn != nil && row.EndOn != nil && row.EndOn.Before(*row.StartOn) {
+			errs = append(errs, "End on must be on or after start_on")
+		}
+	} else {
+		if row.StartAt == nil {
+			errs = append(errs, "Start at can't be blank")
+		}
+		if row.EndAt == nil {
+			errs = append(errs, "End at can't be blank")
+		}
+		if row.StartAt != nil && row.EndAt != nil && !row.EndAt.After(*row.StartAt) {
+			errs = append(errs, "End at must be after start_at")
+		}
 	}
-	if row.EndAt.IsZero() {
-		errs = append(errs, "End at can't be blank")
-	}
-	if !row.StartAt.IsZero() && !row.EndAt.IsZero() && !row.EndAt.After(row.StartAt) {
-		errs = append(errs, "End at must be after start_at")
+	if row.ReminderMinutes != nil && (*row.ReminderMinutes < 1 || *row.ReminderMinutes > reminderMinutesMax) {
+		errs = append(errs, "Reminder minutes is not a number")
 	}
 	if row.RecurrenceRule != nil && strings.TrimSpace(*row.RecurrenceRule) != "" {
 		rule, err := decodeRule(row.RecurrenceRule)
@@ -312,26 +382,71 @@ func decodeRule(raw *string) (*recurrence.Rule, error) {
 	return rule, nil
 }
 
-func toResponse(row db.Event, rule *recurrence.Rule, start, end time.Time) EventResponse {
-	var params *RecurrenceParams
-	if rule != nil {
-		p := RecurrenceParams{Frequency: rule.Frequency, Interval: rule.Interval}
-		if rule.Until != "" {
-			u := rule.Until
-			p.Until = &u
+func toResponse(row db.Event) (EventResponse, error) {
+	rule, err := decodeRule(row.RecurrenceRule)
+	if err != nil {
+		return EventResponse{}, err
+	}
+	if row.AllDay {
+		start, end := time.Time{}, time.Time{}
+		if row.StartOn != nil {
+			start = *row.StartOn
 		}
-		params = &p
+		if row.EndOn != nil {
+			end = *row.EndOn
+		}
+		return toAllDayResponse(row, rule, start, end), nil
 	}
+	start, end := time.Time{}, time.Time{}
+	if row.StartAt != nil {
+		start = *row.StartAt
+	}
+	if row.EndAt != nil {
+		end = *row.EndAt
+	}
+	return toTimedResponse(row, rule, start, end), nil
+}
+
+func toTimedResponse(row db.Event, rule *recurrence.Rule, start, end time.Time) EventResponse {
+	s := start.UTC()
+	e := end.UTC()
 	return EventResponse{
-		ID:          row.ID,
-		Title:       row.Title,
-		Description: row.Description,
-		StartAt:     start.UTC(),
-		EndAt:       end.UTC(),
-		AllDay:      row.AllDay,
-		Recurring:   rule != nil,
-		Recurrence:  params,
+		ID:              row.ID,
+		Title:           row.Title,
+		Description:     row.Description,
+		StartAt:         &s,
+		EndAt:           &e,
+		AllDay:          row.AllDay,
+		ReminderMinutes: row.ReminderMinutes,
+		Recurring:       rule != nil,
+		Recurrence:      recurrenceParams(rule),
 	}
+}
+
+func toAllDayResponse(row db.Event, rule *recurrence.Rule, startOn, endOn time.Time) EventResponse {
+	return EventResponse{
+		ID:              row.ID,
+		Title:           row.Title,
+		Description:     row.Description,
+		StartOn:         dateJSON(startOn),
+		EndOn:           dateJSON(endOn),
+		AllDay:          row.AllDay,
+		ReminderMinutes: row.ReminderMinutes,
+		Recurring:       rule != nil,
+		Recurrence:      recurrenceParams(rule),
+	}
+}
+
+func recurrenceParams(rule *recurrence.Rule) *RecurrenceParams {
+	if rule == nil {
+		return nil
+	}
+	p := RecurrenceParams{Frequency: rule.Frequency, Interval: rule.Interval}
+	if rule.Until != "" {
+		u := rule.Until
+		p.Until = &u
+	}
+	return &p
 }
 
 func parseDate(value string) (time.Time, error) {
@@ -351,4 +466,42 @@ func parseDate(value string) (time.Time, error) {
 		return t, nil
 	}
 	return time.Time{}, badRequest("invalid date: " + value)
+}
+
+func locationOf(tz string) *time.Location {
+	if strings.TrimSpace(tz) == "" {
+		tz = "Asia/Tokyo"
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
+}
+
+func civilIn(t time.Time, loc *time.Location) time.Time {
+	y, m, d := t.In(loc).Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
+func utcPtr(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	v := t.UTC()
+	return &v
+}
+
+func civilPtr(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	y, m, d := t.UTC().Date()
+	v := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	return &v
+}
+
+func dateJSON(t time.Time) *string {
+	s := t.UTC().Format("2006-01-02")
+	return &s
 }

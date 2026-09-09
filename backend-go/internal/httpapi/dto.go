@@ -44,14 +44,17 @@ type recurrenceJSON struct {
 }
 
 type eventJSON struct {
-	ID          int64           `json:"id"`
-	Title       string          `json:"title"`
-	Description *string         `json:"description"`
-	StartAt     time.Time       `json:"start_at"`
-	EndAt       time.Time       `json:"end_at"`
-	AllDay      bool            `json:"all_day"`
-	Recurring   bool            `json:"recurring"`
-	Recurrence  *recurrenceJSON `json:"recurrence"`
+	ID              int64           `json:"id"`
+	Title           string          `json:"title"`
+	Description     *string         `json:"description"`
+	StartAt         *time.Time      `json:"start_at"`
+	EndAt           *time.Time      `json:"end_at"`
+	StartOn         *string         `json:"start_on"`
+	EndOn           *string         `json:"end_on"`
+	AllDay          bool            `json:"all_day"`
+	ReminderMinutes *int32          `json:"reminder_minutes"`
+	Recurring       bool            `json:"recurring"`
+	Recurrence      *recurrenceJSON `json:"recurrence"`
 }
 
 type userJSON struct {
@@ -59,6 +62,7 @@ type userJSON struct {
 	Email     string  `json:"email"`
 	Name      string  `json:"name"`
 	AvatarURL *string `json:"avatar_url"`
+	TimeZone  string  `json:"time_zone"`
 }
 
 type authJSON struct {

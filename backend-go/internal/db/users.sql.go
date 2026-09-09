@@ -11,7 +11,7 @@ import (
 )
 
 const findUserByEmail = `-- name: FindUserByEmail :one
-SELECT id, email, google_uid, name, avatar_url, created_at, updated_at
+SELECT id, email, google_uid, name, avatar_url, created_at, updated_at, time_zone
 FROM users
 WHERE email = $1
 `
@@ -27,12 +27,13 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 		&i.AvatarUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TimeZone,
 	)
 	return i, err
 }
 
 const findUserByID = `-- name: FindUserByID :one
-SELECT id, email, google_uid, name, avatar_url, created_at, updated_at
+SELECT id, email, google_uid, name, avatar_url, created_at, updated_at, time_zone
 FROM users
 WHERE id = $1
 `
@@ -48,14 +49,15 @@ func (q *Queries) FindUserByID(ctx context.Context, id int64) (User, error) {
 		&i.AvatarUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TimeZone,
 	)
 	return i, err
 }
 
 const insertUser = `-- name: InsertUser :one
-INSERT INTO users (email, google_uid, name, avatar_url, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, email, google_uid, name, avatar_url, created_at, updated_at
+INSERT INTO users (email, google_uid, name, avatar_url, time_zone, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, email, google_uid, name, avatar_url, created_at, updated_at, time_zone
 `
 
 type InsertUserParams struct {
@@ -63,6 +65,7 @@ type InsertUserParams struct {
 	GoogleUid string
 	Name      string
 	AvatarUrl *string
+	TimeZone  string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -73,6 +76,7 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 		arg.GoogleUid,
 		arg.Name,
 		arg.AvatarUrl,
+		arg.TimeZone,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -85,6 +89,7 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 		&i.AvatarUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TimeZone,
 	)
 	return i, err
 }
@@ -95,9 +100,10 @@ SET email = $2,
     google_uid = $3,
     name = $4,
     avatar_url = $5,
-    updated_at = $6
+    time_zone = $6,
+    updated_at = $7
 WHERE id = $1
-RETURNING id, email, google_uid, name, avatar_url, created_at, updated_at
+RETURNING id, email, google_uid, name, avatar_url, created_at, updated_at, time_zone
 `
 
 type UpdateUserParams struct {
@@ -106,6 +112,7 @@ type UpdateUserParams struct {
 	GoogleUid string
 	Name      string
 	AvatarUrl *string
+	TimeZone  string
 	UpdatedAt time.Time
 }
 
@@ -116,6 +123,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.GoogleUid,
 		arg.Name,
 		arg.AvatarUrl,
+		arg.TimeZone,
 		arg.UpdatedAt,
 	)
 	var i User
@@ -127,6 +135,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.AvatarUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TimeZone,
 	)
 	return i, err
 }
