@@ -12,6 +12,7 @@ Route::delete('/auth/logout', [AuthController::class, 'logout']);
 
 Route::middleware(AuthenticateJwt::class)->group(function () {
     Route::get('/me', [MeController::class, 'show']);
+    Route::patch('/me', [MeController::class, 'update']);
     Route::get('/events', [EventsController::class, 'index']);
     Route::post('/events', [EventsController::class, 'store']);
     Route::patch('/events/{id}', [EventsController::class, 'update']);

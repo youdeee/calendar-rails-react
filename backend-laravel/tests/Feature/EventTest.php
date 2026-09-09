@@ -258,6 +258,62 @@ class EventTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_creates_all_day_event_from_start_on_and_end_on(): void
+    {
+        $user = $this->persistUser();
+        $this->withHeaders($this->bearer($user))
+            ->postJson('/api/events', [
+                'event' => [
+                    'title' => 'Holiday',
+                    'all_day' => true,
+                    'start_on' => '2026-08-10',
+                    'end_on' => '2026-08-12',
+                    'reminder_minutes' => 360,
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('all_day', true)
+            ->assertJsonPath('start_on', '2026-08-10')
+            ->assertJsonPath('end_on', '2026-08-12')
+            ->assertJsonPath('start_at', null)
+            ->assertJsonPath('reminder_minutes', 360);
+    }
+
+    public function test_lists_all_day_event_in_range(): void
+    {
+        $user = $this->persistUser();
+        $this->withHeaders($this->bearer($user))
+            ->postJson('/api/events', [
+                'event' => [
+                    'title' => 'Holiday',
+                    'all_day' => true,
+                    'start_on' => '2026-08-10',
+                    'end_on' => '2026-08-10',
+                ],
+            ])
+            ->assertCreated();
+        $this->withHeaders($this->bearer($user))
+            ->getJson('/api/events?from=2026-08-01&to=2026-08-31')
+            ->assertOk()
+            ->assertJsonPath('0.title', 'Holiday')
+            ->assertJsonPath('0.start_on', '2026-08-10');
+    }
+
+    public function test_rejects_reminder_minutes_above_thirty_days(): void
+    {
+        $user = $this->persistUser();
+        $this->withHeaders($this->bearer($user))
+            ->postJson('/api/events', [
+                'event' => [
+                    'title' => 'Lunch',
+                    'start_at' => '2026-08-10T12:00:00+09:00',
+                    'end_at' => '2026-08-10T13:00:00+09:00',
+                    'reminder_minutes' => 43201,
+                ],
+            ])
+            ->assertUnprocessable();
+    }
+
     private function createEvent(User $owner, string $title, string $start, string $end, ?array $recurrence = null): array
     {
         $event = ['title' => $title, 'start_at' => $start, 'end_at' => $end];

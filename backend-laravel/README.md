@@ -25,7 +25,7 @@ php artisan migrate
 php artisan serve --port=8082
 ```
 
-既定ポートは `8082`。フロントを繋ぐときは Vite の proxy 先を切り替えます:
+既定ポートは `8082`。`php artisan schedule:work` で毎分リマインダーをスイープし、Mailpit（SMTP `127.0.0.1:1025`）へ送ります。フロントを繋ぐときは Vite の proxy 先を切り替えます:
 
 ```
 cd frontend

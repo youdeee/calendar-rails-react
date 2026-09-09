@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Calendar\RecurrenceExpander;
+use App\Calendar\ReminderDispatcher;
 use App\Models\Event;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -12,6 +13,10 @@ use JsonException;
 
 class EventsController extends Controller
 {
+    private const REMINDER_MINUTES_MAX = 43_200;
+
+    public function __construct(private ReminderDispatcher $reminders) {}
+
     public function index(Request $request): JsonResponse
     {
         $from = $this->parseDate($request->query('from'));
@@ -24,15 +29,29 @@ class EventsController extends Controller
         }
 
         $toBoundary = RecurrenceExpander::endOfUtcDay($to);
+        $zone = $request->user()->time_zone ?: 'Asia/Tokyo';
+        $zoneStartDate = $from->copy()->timezone($zone)->toDateString();
+        $zoneEndDate = $toBoundary->copy()->timezone($zone)->toDateString();
         $candidates = $request->user()->events()
-            ->where(function ($query) use ($from, $toBoundary) {
+            ->where(function ($query) use ($from, $toBoundary, $zoneStartDate, $zoneEndDate) {
                 $query->where(function ($q) use ($from, $toBoundary) {
-                    $q->whereNull('recurrence_rule')
+                    $q->where('all_day', false)
+                        ->whereNull('recurrence_rule')
                         ->where('start_at', '<=', $toBoundary)
                         ->where('end_at', '>=', $from);
                 })->orWhere(function ($q) use ($toBoundary) {
-                    $q->whereNotNull('recurrence_rule')
+                    $q->where('all_day', false)
+                        ->whereNotNull('recurrence_rule')
                         ->where('start_at', '<=', $toBoundary);
+                })->orWhere(function ($q) use ($zoneStartDate, $zoneEndDate) {
+                    $q->where('all_day', true)
+                        ->whereNull('recurrence_rule')
+                        ->whereDate('start_on', '<=', $zoneEndDate)
+                        ->whereDate('end_on', '>=', $zoneStartDate);
+                })->orWhere(function ($q) use ($zoneEndDate) {
+                    $q->where('all_day', true)
+                        ->whereNotNull('recurrence_rule')
+                        ->whereDate('start_on', '<=', $zoneEndDate);
                 });
             })
             ->get();
@@ -40,9 +59,23 @@ class EventsController extends Controller
         $occurrences = [];
         foreach ($candidates as $event) {
             $rule = $this->decodeRule($event);
+            if ($event->all_day) {
+                if ($event->start_on === null || $event->end_on === null) {
+                    continue;
+                }
+                $durationDays = (int) $event->start_on->copy()->startOfDay()->diffInDays($event->end_on->copy()->startOfDay());
+                foreach (RecurrenceExpander::allDayOccurrencesBetween($event->start_on, $event->end_on, $from, $to, $zone, $rule) as $startOn) {
+                    $occurrences[] = $this->serializeAllDay($event, $rule, $startOn, $startOn->copy()->addDays($durationDays));
+                }
+
+                continue;
+            }
+            if ($event->start_at === null || $event->end_at === null) {
+                continue;
+            }
             $duration = $event->end_at->getTimestamp() - $event->start_at->getTimestamp();
             foreach (RecurrenceExpander::occurrencesBetween($event->start_at, $event->end_at, $from, $to, $rule) as $start) {
-                $occurrences[] = $this->serializeEvent($event, $rule, $start, $start->copy()->addSeconds($duration));
+                $occurrences[] = $this->serializeTimed($event, $rule, $start, $start->copy()->addSeconds($duration));
             }
         }
 
@@ -54,10 +87,12 @@ class EventsController extends Controller
         $input = $this->eventPayload($request);
         $event = new Event(['user_id' => $request->user()->id, 'all_day' => false]);
         $this->assign($event, $input, true);
+        $this->applyScheduleKind($event);
         $this->validateEvent($event);
         $event->save();
+        $this->reminders->dispatchAfterSave($event);
 
-        return response()->json($this->serializeEvent($event, $this->decodeRule($event), $event->start_at, $event->end_at), 201);
+        return response()->json($this->serializeSaved($event), 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -68,10 +103,12 @@ class EventsController extends Controller
         }
         $input = $this->eventPayload($request);
         $this->assign($event, $input, false);
+        $this->applyScheduleKind($event);
         $this->validateEvent($event);
         $event->save();
+        $this->reminders->dispatchAfterSave($event);
 
-        return response()->json($this->serializeEvent($event, $this->decodeRule($event), $event->start_at, $event->end_at));
+        return response()->json($this->serializeSaved($event));
     }
 
     public function destroy(Request $request, int $id): Response
@@ -110,16 +147,36 @@ class EventsController extends Controller
             $event->description = $input['description'];
         }
         if ($creating || array_key_exists('start_at', $input)) {
-            $event->start_at = isset($input['start_at']) ? $this->parseInstant($input['start_at']) : null;
+            $event->start_at = array_key_exists('start_at', $input) ? $this->parseInstant($input['start_at']) : $event->start_at;
         }
         if ($creating || array_key_exists('end_at', $input)) {
-            $event->end_at = isset($input['end_at']) ? $this->parseInstant($input['end_at']) : null;
+            $event->end_at = array_key_exists('end_at', $input) ? $this->parseInstant($input['end_at']) : $event->end_at;
+        }
+        if (array_key_exists('start_on', $input)) {
+            $event->start_on = $this->parseCivilDate($input['start_on']);
+        }
+        if (array_key_exists('end_on', $input)) {
+            $event->end_on = $this->parseCivilDate($input['end_on']);
         }
         if (array_key_exists('all_day', $input)) {
             $event->all_day = (bool) $input['all_day'];
         }
+        if (array_key_exists('reminder_minutes', $input)) {
+            $event->reminder_minutes = $this->parseReminderMinutes($input['reminder_minutes']);
+        }
         if ($creating || array_key_exists('recurrence', $input)) {
             $this->applyRecurrence($event, $input['recurrence'] ?? null);
+        }
+    }
+
+    private function applyScheduleKind(Event $event): void
+    {
+        if ($event->all_day) {
+            $event->start_at = null;
+            $event->end_at = null;
+        } else {
+            $event->start_on = null;
+            $event->end_on = null;
         }
     }
 
@@ -152,14 +209,29 @@ class EventsController extends Controller
         if (is_string($event->description) && strlen($event->description) > 5000) {
             $errors[] = 'Description is too long (maximum is 5000 characters)';
         }
-        if ($event->start_at === null) {
-            $errors[] = "Start at can't be blank";
+        if ($event->all_day) {
+            if ($event->start_on === null) {
+                $errors[] = "Start on can't be blank";
+            }
+            if ($event->end_on === null) {
+                $errors[] = "End on can't be blank";
+            }
+            if ($event->start_on && $event->end_on && $event->end_on->lt($event->start_on)) {
+                $errors[] = 'End on must be on or after start_on';
+            }
+        } else {
+            if ($event->start_at === null) {
+                $errors[] = "Start at can't be blank";
+            }
+            if ($event->end_at === null) {
+                $errors[] = "End at can't be blank";
+            }
+            if ($event->start_at && $event->end_at && ! $event->end_at->gt($event->start_at)) {
+                $errors[] = 'End at must be after start_at';
+            }
         }
-        if ($event->end_at === null) {
-            $errors[] = "End at can't be blank";
-        }
-        if ($event->start_at && $event->end_at && ! $event->end_at->gt($event->start_at)) {
-            $errors[] = 'End at must be after start_at';
+        if ($event->reminder_minutes !== null && ($event->reminder_minutes < 1 || $event->reminder_minutes > self::REMINDER_MINUTES_MAX)) {
+            $errors[] = 'Reminder minutes is not a number';
         }
         if ($event->recurring()) {
             $this->validateRecurrence($this->decodeRule($event) ?? []);
@@ -208,7 +280,17 @@ class EventsController extends Controller
         return $decoded;
     }
 
-    private function serializeEvent(Event $event, ?array $rule, Carbon $start, Carbon $end): array
+    private function serializeSaved(Event $event): array
+    {
+        $rule = $this->decodeRule($event);
+        if ($event->all_day) {
+            return $this->serializeAllDay($event, $rule, $event->start_on, $event->end_on);
+        }
+
+        return $this->serializeTimed($event, $rule, $event->start_at, $event->end_at);
+    }
+
+    private function serializeTimed(Event $event, ?array $rule, Carbon $start, Carbon $end): array
     {
         return [
             'id' => $event->id,
@@ -216,7 +298,27 @@ class EventsController extends Controller
             'description' => $event->description,
             'start_at' => $start->copy()->utc()->toIso8601String(),
             'end_at' => $end->copy()->utc()->toIso8601String(),
+            'start_on' => null,
+            'end_on' => null,
             'all_day' => (bool) $event->all_day,
+            'reminder_minutes' => $event->reminder_minutes,
+            'recurring' => $rule !== null,
+            'recurrence' => $rule,
+        ];
+    }
+
+    private function serializeAllDay(Event $event, ?array $rule, Carbon $startOn, Carbon $endOn): array
+    {
+        return [
+            'id' => $event->id,
+            'title' => $event->title,
+            'description' => $event->description,
+            'start_at' => null,
+            'end_at' => null,
+            'start_on' => $startOn->toDateString(),
+            'end_on' => $endOn->toDateString(),
+            'all_day' => true,
+            'reminder_minutes' => $event->reminder_minutes,
             'recurring' => $rule !== null,
             'recurrence' => $rule,
         ];
@@ -248,6 +350,38 @@ class EventsController extends Controller
         } catch (\Throwable) {
             abort(400, 'invalid request');
         }
+    }
+
+    private function parseCivilDate(mixed $value): Carbon
+    {
+        if (! is_string($value) || $value === '') {
+            abort(400, 'invalid request');
+        }
+        try {
+            $parsed = Carbon::createFromFormat('Y-m-d', $value, 'UTC');
+            if ($parsed === false || $parsed->format('Y-m-d') !== $value) {
+                abort(400, 'invalid request');
+            }
+
+            return $parsed->startOfDay();
+        } catch (\Throwable) {
+            abort(400, 'invalid request');
+        }
+    }
+
+    private function parseReminderMinutes(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_float($value) || is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return 0;
     }
 
     private function flexInt(mixed $value): int

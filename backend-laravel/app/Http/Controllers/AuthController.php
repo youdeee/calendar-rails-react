@@ -94,6 +94,7 @@ class AuthController extends Controller
             'email' => $user->email,
             'name' => $user->name,
             'avatar_url' => $user->avatar_url,
+            'time_zone' => $user->time_zone ?: 'Asia/Tokyo',
         ];
     }
 

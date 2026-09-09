@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Model
 {
-    protected $fillable = ['email', 'google_uid', 'name', 'avatar_url'];
+    protected $fillable = ['email', 'google_uid', 'name', 'avatar_url', 'time_zone'];
 
     public function events(): HasMany
     {
