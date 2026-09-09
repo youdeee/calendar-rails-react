@@ -1,10 +1,13 @@
 class User < ApplicationRecord
   has_many :events, dependent: :destroy
   has_many :refresh_tokens, dependent: :destroy
+  has_many :reminder_deliveries, dependent: :destroy
 
   validates :email, presence: true, uniqueness: true
   validates :google_uid, presence: true, uniqueness: true
   validates :name, presence: true
+  validates :time_zone, presence: true
+  validate :time_zone_must_be_known
 
   def self.find_or_create_from_google!(payload)
     raise ArgumentError, "email not verified" unless payload["email_verified"]
@@ -15,5 +18,14 @@ class User < ApplicationRecord
     user.avatar_url = payload["picture"]
     user.save!
     user
+  end
+
+  private
+
+  def time_zone_must_be_known
+    return if time_zone.blank?
+    return if Time.find_zone(time_zone)
+
+    errors.add(:time_zone, "is not a valid time zone")
   end
 end

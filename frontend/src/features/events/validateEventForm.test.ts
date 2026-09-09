@@ -11,6 +11,10 @@ const base: EventFormValues = {
   frequency: "weekly",
   interval: "1",
   until: "",
+  reminderEnabled: false,
+  reminderMinutes: "15",
+  reminderDays: "1",
+  reminderTime: "18:00",
 };
 
 it("passes for valid values", () => {

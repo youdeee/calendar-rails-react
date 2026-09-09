@@ -42,4 +42,9 @@ RSpec.describe User, type: :model do
       expect { User.find_or_create_from_google!(payload) }.to raise_error(ArgumentError)
     end
   end
+
+  it "rejects an unknown time zone" do
+    user = User.new(email: "a@example.com", google_uid: "google-1", name: "Taro", time_zone: "Not/AZone")
+    expect(user).not_to be_valid
+  end
 end

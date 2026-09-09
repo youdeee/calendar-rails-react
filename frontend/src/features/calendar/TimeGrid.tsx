@@ -61,7 +61,7 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent, onSelectDate = () =
             <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="flex flex-1 flex-col gap-1 border-l border-gray-200 p-1 dark:border-gray-700">
               {allDayEvents.map((event) => (
                 <button
-                  key={`${event.id}-${event.start_at}`}
+                  key={`${event.id}-${event.start_on}`}
                   onClick={(e) => { e.stopPropagation(); onSelectEvent(event); }}
                   className="truncate rounded bg-brand px-1.5 py-0.5 text-left text-xs text-white"
                 >
@@ -88,7 +88,10 @@ export function TimeGrid({ days, eventsByDay, onSelectEvent, onSelectDate = () =
 
         {days.map((day) => {
           const dayEvents = eventsByDay.get(toDateKey(day)) ?? [];
-          const timedEvents = dayEvents.filter((event) => !event.all_day);
+          const timedEvents = dayEvents.filter(
+            (event): event is CalendarEvent & { start_at: string; end_at: string } =>
+              !event.all_day && Boolean(event.start_at) && Boolean(event.end_at)
+          );
 
           return (
             <div key={toDateKey(day)} onClick={() => onSelectDate(day)} className="relative flex-1 border-l border-gray-200 dark:border-gray-700">

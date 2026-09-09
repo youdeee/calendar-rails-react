@@ -1,8 +1,9 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { useCreateEvent, useDeleteEvent, useUpdateEvent } from "./hooks";
 import { validateEventForm, type EventFormValues, type EventFormErrors } from "./validateEventForm";
+import { allDayReminderMinutes, minutesToAllDayFields } from "./reminderOffset";
 import { toDateKey } from "../calendar/dateUtils";
-import type { CalendarEvent, RecurrenceParams } from "./api";
+import type { CalendarEvent, RecurrenceParams, EventInput } from "./api";
 
 type Props = {
   event?: CalendarEvent;
@@ -26,17 +27,27 @@ function addHours(datetimeLocalValue: string, hours: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function dateOnlyToRange(startDate: string, endDate: string): { start_at: string; end_at: string } {
-  const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
-  const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
-  const start = new Date(startYear, startMonth - 1, startDay);
-  // The form's end date is inclusive; the API stores all-day ranges as an
-  // exclusive next-midnight boundary.
-  const end = new Date(endYear, endMonth - 1, endDay + 1);
-  return { start_at: start.toISOString(), end_at: end.toISOString() };
+function reminderFields(event?: CalendarEvent): Pick<
+  EventFormValues,
+  "reminderEnabled" | "reminderMinutes" | "reminderDays" | "reminderTime"
+> {
+  if (!event?.reminder_minutes) {
+    return { reminderEnabled: !event, reminderMinutes: "15", reminderDays: "1", reminderTime: "18:00" };
+  }
+  if (event.all_day) {
+    const { days, time } = minutesToAllDayFields(event.reminder_minutes);
+    return { reminderEnabled: true, reminderMinutes: "15", reminderDays: String(days), reminderTime: time };
+  }
+  return {
+    reminderEnabled: true,
+    reminderMinutes: String(event.reminder_minutes),
+    reminderDays: "1",
+    reminderTime: "18:00",
+  };
 }
 
 function toFormValues(event: CalendarEvent | undefined, defaultDate: Date): EventFormValues {
+  const reminder = reminderFields(event);
   if (!event) {
     return {
       title: "",
@@ -49,20 +60,22 @@ function toFormValues(event: CalendarEvent | undefined, defaultDate: Date): Even
       frequency: "weekly",
       interval: "1",
       until: "",
+      ...reminder,
     };
   }
 
   return {
     title: event.title,
     allDay: event.all_day,
-    startDate: toDateKey(new Date(event.start_at)),
-    endDate: event.all_day ? toDateKey(new Date(new Date(event.end_at).getTime() - 1)) : toDateKey(new Date(event.start_at)),
-    startAt: event.all_day ? "" : toDatetimeLocalValue(event.start_at),
-    endAt: event.all_day ? "" : toDatetimeLocalValue(event.end_at),
+    startDate: event.all_day && event.start_on ? event.start_on : event.start_at ? toDateKey(new Date(event.start_at)) : toDateKey(defaultDate),
+    endDate: event.all_day && event.end_on ? event.end_on : event.start_at ? toDateKey(new Date(event.start_at)) : toDateKey(defaultDate),
+    startAt: event.all_day || !event.start_at ? "" : toDatetimeLocalValue(event.start_at),
+    endAt: event.all_day || !event.end_at ? "" : toDatetimeLocalValue(event.end_at),
     recurrenceEnabled: Boolean(event.recurrence),
     frequency: event.recurrence?.frequency ?? "weekly",
     interval: String(event.recurrence?.interval ?? 1),
     until: event.recurrence?.until ?? "",
+    ...reminder,
   };
 }
 
@@ -119,11 +132,17 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
       ? { frequency: values.frequency, interval: Number(values.interval), until: values.until || null }
       : null;
 
-    const { start_at, end_at } = values.allDay
-      ? dateOnlyToRange(values.startDate, values.endDate)
+    const reminder_minutes = values.reminderEnabled
+      ? values.allDay
+        ? allDayReminderMinutes(Number(values.reminderDays), values.reminderTime)
+        : Number(values.reminderMinutes)
+      : null;
+
+    const schedule = values.allDay
+      ? { start_on: values.startDate, end_on: values.endDate }
       : { start_at: new Date(values.startAt).toISOString(), end_at: new Date(values.endAt).toISOString() };
 
-    const input = { title: values.title, start_at, end_at, all_day: values.allDay, recurrence };
+    const input: EventInput = { title: values.title, all_day: values.allDay, recurrence, reminder_minutes, ...schedule };
 
     if (event) {
       updateEvent.mutate({ id: event.id, input }, { onSuccess: onClose });
@@ -263,6 +282,53 @@ export function EventFormModal({ event, defaultDate, onClose }: Props) {
             </label>
           </>
         )}
+
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <input
+            type="checkbox"
+            checked={values.reminderEnabled}
+            onChange={(e) => updateField("reminderEnabled", e.target.checked)}
+          />
+          リマインドする
+        </label>
+
+        {values.reminderEnabled &&
+          (values.allDay ? (
+            <div className="flex gap-2">
+              <label className="flex flex-1 flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
+                日前
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={values.reminderDays}
+                  onChange={(e) => updateField("reminderDays", e.target.value)}
+                  className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+                />
+              </label>
+              <label className="flex flex-1 flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
+                時刻
+                <input
+                  type="time"
+                  value={values.reminderTime}
+                  onChange={(e) => updateField("reminderTime", e.target.value)}
+                  className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-200">
+              開始の何分前
+              <input
+                type="number"
+                min={1}
+                max={43200}
+                value={values.reminderMinutes}
+                onChange={(e) => updateField("reminderMinutes", e.target.value)}
+                className="rounded border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+              />
+            </label>
+          ))}
 
         {errorMessages.length > 0 && (
           <p role="alert" className="text-sm text-red-600">

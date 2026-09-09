@@ -97,4 +97,32 @@ RSpec.describe Event, type: :model do
       expect(result).to include(Time.zone.parse("2026-08-03 00:00"), Time.zone.parse("2026-08-10 00:00"))
     end
   end
+
+  describe "all-day dates" do
+    def build_all_day(**attrs)
+      user.events.new({ title: "Holiday", all_day: true, start_on: Date.new(2026, 8, 10),
+                         end_on: Date.new(2026, 8, 10) }.merge(attrs))
+    end
+
+    it "is valid with start_on and end_on" do
+      expect(build_all_day).to be_valid
+    end
+
+    it "rejects end_on before start_on" do
+      event = build_all_day(end_on: Date.new(2026, 8, 9))
+      expect(event).not_to be_valid
+    end
+
+    it "returns the date when the all-day event overlaps the range in the given time zone" do
+      event = build_all_day
+      result = event.occurrences_between(
+        Time.zone.parse("2026-08-01"), Time.zone.parse("2026-08-31"), time_zone: "Asia/Tokyo"
+      )
+      expect(result).to eq([Date.new(2026, 8, 10)])
+    end
+  end
+
+  it "rejects reminder_minutes above 30 days" do
+    expect(build_event(reminder_minutes: 43_201)).not_to be_valid
+  end
 end

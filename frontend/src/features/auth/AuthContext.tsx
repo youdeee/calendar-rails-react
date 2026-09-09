@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiFetch, apiRequest, setAccessToken, setUnauthorizedHandler } from "../../api/client";
 
-export type User = { id: number; email: string; name: string; avatar_url: string | null };
+export type User = { id: number; email: string; name: string; avatar_url: string | null; time_zone?: string };
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 interface AuthContextValue {
@@ -28,6 +28,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  const syncTimeZone = useCallback(async () => {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!timeZone) return;
+    try {
+      const updated = await apiRequest<User>("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({ time_zone: timeZone }),
+      });
+      setUser(updated);
+    } catch (error) {
+      console.error("Failed to sync time zone:", error);
+    }
+  }, []);
+
   const restoreSession = useCallback(async () => {
     try {
       const response = await apiFetch("/api/auth/refresh", { method: "POST" });
@@ -39,11 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(body.access_token);
       setUser(body.user);
       setStatus("authenticated");
+      void syncTimeZone();
     } catch (error) {
       console.error("Failed to restore session:", error);
       setStatus("unauthenticated");
     }
-  }, []);
+  }, [syncTimeZone]);
 
   useEffect(() => {
     setUnauthorizedHandler(clearSession);
@@ -62,7 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(body.access_token);
     setUser(body.user);
     setStatus("authenticated");
-  }, []);
+    void syncTimeZone();
+  }, [syncTimeZone]);
 
   const logout = useCallback(async () => {
     try {

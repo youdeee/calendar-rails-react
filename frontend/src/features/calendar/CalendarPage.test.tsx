@@ -11,8 +11,16 @@ function mockFetchRouter() {
         new Response(
           JSON.stringify({
             access_token: "t1",
-            user: { id: 1, email: "a@example.com", name: "A", avatar_url: null },
+            user: { id: 1, email: "a@example.com", name: "A", avatar_url: null, time_zone: "Asia/Tokyo" },
           }),
+          { status: 200 }
+        )
+      );
+    }
+    if (url.includes("/api/me")) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ id: 1, email: "a@example.com", name: "A", avatar_url: null, time_zone: "Asia/Tokyo" }),
           { status: 200 }
         )
       );

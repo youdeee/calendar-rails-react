@@ -27,7 +27,7 @@ class ApplicationController < ActionController::API
   end
 
   def user_json(user)
-    { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url }
+    { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, time_zone: user.time_zone }
   end
 
   def render_unauthorized

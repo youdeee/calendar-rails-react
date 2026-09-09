@@ -1,3 +1,5 @@
+import { allDayReminderMinutes, REMINDER_MINUTES_MAX } from "./reminderOffset";
+
 export type EventFormValues = {
   title: string;
   allDay: boolean;
@@ -9,10 +11,14 @@ export type EventFormValues = {
   frequency: "daily" | "weekly" | "monthly";
   interval: string;
   until: string;
+  reminderEnabled: boolean;
+  reminderMinutes: string;
+  reminderDays: string;
+  reminderTime: string;
 };
 
 export type EventFormErrors = Partial<
-  Record<"title" | "startDate" | "endDate" | "startAt" | "endAt" | "interval", string>
+  Record<"title" | "startDate" | "endDate" | "startAt" | "endAt" | "interval" | "reminderMinutes" | "reminderDays", string>
 >;
 
 export function validateEventForm(values: EventFormValues): EventFormErrors {
@@ -56,6 +62,25 @@ export function validateEventForm(values: EventFormValues): EventFormErrors {
     const interval = Number(values.interval);
     if (!Number.isInteger(interval) || interval <= 0) {
       errors.interval = "繰り返し間隔は1以上の整数で入力してください";
+    }
+  }
+
+  if (values.reminderEnabled) {
+    if (values.allDay) {
+      const days = Number(values.reminderDays);
+      if (!Number.isInteger(days) || days < 1 || days > 30) {
+        errors.reminderDays = "リマインドは1〜30日前にしてください";
+      } else {
+        const minutes = allDayReminderMinutes(days, values.reminderTime || "18:00");
+        if (minutes < 1 || minutes > REMINDER_MINUTES_MAX) {
+          errors.reminderDays = "リマインドは1分〜30日前にしてください";
+        }
+      }
+    } else {
+      const minutes = Number(values.reminderMinutes);
+      if (!Number.isInteger(minutes) || minutes < 1 || minutes > REMINDER_MINUTES_MAX) {
+        errors.reminderMinutes = "リマインドは1〜43200分前にしてください";
+      }
     }
   }
 

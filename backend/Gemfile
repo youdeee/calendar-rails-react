@@ -18,6 +18,8 @@ gem "jwt"
 gem "googleauth"
 gem "ice_cube"
 gem "rack-attack"
+gem "sidekiq", "~> 7.3"
+gem "sidekiq-cron", "~> 2.0"
 
 group :development, :test do
   gem "rubocop-rails-omakase", require: false

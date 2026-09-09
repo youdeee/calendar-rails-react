@@ -6,9 +6,12 @@ export type CalendarEvent = {
   id: number;
   title: string;
   description: string | null;
-  start_at: string;
-  end_at: string;
+  start_at: string | null;
+  end_at: string | null;
+  start_on: string | null;
+  end_on: string | null;
   all_day: boolean;
+  reminder_minutes: number | null;
   recurring: boolean;
   recurrence: RecurrenceParams | null;
 };
@@ -16,9 +19,12 @@ export type CalendarEvent = {
 export type EventInput = {
   title: string;
   description?: string;
-  start_at: string;
-  end_at: string;
   all_day?: boolean;
+  start_at?: string | null;
+  end_at?: string | null;
+  start_on?: string | null;
+  end_on?: string | null;
+  reminder_minutes?: number | null;
   recurrence?: RecurrenceParams | null;
 };
 
