@@ -85,3 +85,18 @@ jobs:
           go-version-file: backend-go/go.mod
           cache-dependency-path: backend-go/go.sum
       - run: go test ./...
+
+  backend-laravel:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-laravel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --optimize-autoloader
+      - run: php artisan test

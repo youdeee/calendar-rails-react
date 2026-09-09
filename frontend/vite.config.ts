@@ -23,7 +23,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        // Rails: http://localhost:3000  /  Spring: http://localhost:8080  /  Go: http://localhost:8081
+        // Rails: http://localhost:3000  /  Spring: http://localhost:8080  /  Go: http://localhost:8081  /  Laravel: http://localhost:8082
         target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:3000",
         changeOrigin: true,
       },

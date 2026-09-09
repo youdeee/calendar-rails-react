@@ -41,6 +41,17 @@ Rails / Java は残したまま、学習用の第3バックエンドが `backend
 
 詳細は `backend-go/README.md`。
 
+## Laravel backend (study)
+
+Rails / Java / Go は残したまま、学習用の第4バックエンドが `backend-laravel/` にあります。API 契約は Rails 互換です。
+
+1. Postgres: `docker compose up -d db`
+2. DB 作成（既存ボリュームの場合）: `docker compose exec db createdb -U postgres calendar_laravel || true`
+3. `cd backend-laravel && composer install && php artisan key:generate && php artisan migrate && php artisan serve --port=8082`
+4. フロント: `VITE_API_PROXY_TARGET=http://localhost:8082 npm run dev`
+
+詳細は `backend-laravel/README.md`。
+
 ## Backend environment variables
 
 | Var | Default | Notes |
