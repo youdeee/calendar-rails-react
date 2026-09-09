@@ -66,8 +66,9 @@ it("submits a valid all-day event using the default date", async () => {
 
   const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
   expect(body.event.all_day).toBe(true);
-  expect(new Date(body.event.start_at).toDateString()).toBe(new Date(2026, 7, 10).toDateString());
-  expect(new Date(body.event.end_at).toDateString()).toBe(new Date(2026, 7, 11).toDateString());
+  expect(body.event.start_on).toBe("2026-08-10");
+  expect(body.event.end_on).toBe("2026-08-10");
+  expect(body.event.reminder_minutes).toBe(360);
 });
 
 it("submits a timed event after unchecking all-day", async () => {
@@ -96,6 +97,9 @@ it("submits a timed event after unchecking all-day", async () => {
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   await waitFor(() => expect(onClose).toHaveBeenCalled());
+
+  const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+  expect(body.event.reminder_minutes).toBe(15);
 });
 
 it("auto-fills the end time as start time + 1 hour when unchecking all-day", async () => {
@@ -156,7 +160,10 @@ it("opens an existing timed event with its own time fields, ignoring the all-day
     description: null,
     start_at: "2026-08-10T03:00:00Z",
     end_at: "2026-08-10T04:00:00Z",
+    start_on: null,
+    end_on: null,
     all_day: false,
+    reminder_minutes: null,
     recurring: false,
     recurrence: null,
   };
@@ -164,7 +171,7 @@ it("opens an existing timed event with its own time fields, ignoring the all-day
 
   expect(screen.getByLabelText("終日")).not.toBeChecked();
 
-  const expectedStart = new Date(event.start_at);
+  const expectedStart = new Date(event.start_at!);
   const offsetMinutes = expectedStart.getTimezoneOffset();
   const localStart = new Date(expectedStart.getTime() - offsetMinutes * 60000).toISOString().slice(0, 16);
 
@@ -178,7 +185,10 @@ it("does not overwrite the end time when only the start time of an existing time
     description: null,
     start_at: "2026-08-10T10:00:00Z",
     end_at: "2026-08-10T12:00:00Z",
+    start_on: null,
+    end_on: null,
     all_day: false,
+    reminder_minutes: null,
     recurring: false,
     recurrence: null,
   };
@@ -187,9 +197,9 @@ it("does not overwrite the end time when only the start time of an existing time
   // Represent local wall-clock values in the "local-as-UTC" domain (offset already
   // subtracted), matching how the component derives datetime-local field values, so
   // the computed strings are correct regardless of the test runner's timezone.
-  const offsetMinutes = new Date(event.start_at).getTimezoneOffset();
-  const localStart = new Date(new Date(event.start_at).getTime() - offsetMinutes * 60000);
-  const localEnd = new Date(new Date(event.end_at).getTime() - offsetMinutes * 60000);
+  const offsetMinutes = new Date(event.start_at!).getTimezoneOffset();
+  const localStart = new Date(new Date(event.start_at!).getTime() - offsetMinutes * 60000);
+  const localEnd = new Date(new Date(event.end_at!).getTime() - offsetMinutes * 60000);
   const newStartValue = new Date(localStart.getTime() - 60 * 60000).toISOString().slice(0, 16);
 
   fireEvent.change(screen.getByLabelText("開始日時"), { target: { value: newStartValue } });
@@ -231,7 +241,10 @@ it("opens an existing all-day event with the all-day toggle on", () => {
     description: null,
     start_at: "2026-08-10T00:00:00Z",
     end_at: "2026-08-11T00:00:00Z",
+    start_on: "2026-08-10",
+    end_on: "2026-08-10",
     all_day: true,
+    reminder_minutes: null,
     recurring: false,
     recurrence: null,
   };
@@ -240,16 +253,17 @@ it("opens an existing all-day event with the all-day toggle on", () => {
   expect(screen.getByLabelText("終日")).toBeChecked();
 });
 
-it("edits an all-day event with an inclusive end date and submits an exclusive API boundary", async () => {
+it("edits an all-day event with an inclusive end date", async () => {
   const event: CalendarEvent = {
     id: 1,
     title: "Trip",
     description: null,
-    // Construct local midnights instead of hard-coding JST-equivalent UTC
-    // strings, so this assertion has the same calendar-day meaning in CI.
-    start_at: new Date(2026, 7, 10).toISOString(),
-    end_at: new Date(2026, 7, 13).toISOString(),
+    start_at: null,
+    end_at: null,
+    start_on: "2026-08-10",
+    end_on: "2026-08-12",
     all_day: true,
+    reminder_minutes: null,
     recurring: false,
     recurrence: null,
   };
@@ -263,7 +277,8 @@ it("edits an all-day event with an inclusive end date and submits an exclusive A
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
-  expect(new Date(body.event.end_at).toDateString()).toBe(new Date(2026, 7, 13).toDateString());
+  expect(body.event.start_on).toBe("2026-08-10");
+  expect(body.event.end_on).toBe("2026-08-12");
 });
 
 it("loads existing recurrence settings into the edit form", () => {
@@ -273,7 +288,10 @@ it("loads existing recurrence settings into the edit form", () => {
     description: null,
     start_at: "2026-08-10T00:00:00Z",
     end_at: "2026-08-11T00:00:00Z",
+    start_on: "2026-08-10",
+    end_on: "2026-08-10",
     all_day: true,
+    reminder_minutes: null,
     recurring: true,
     recurrence: { frequency: "monthly", interval: 2, until: "2026-12-31" },
   };
@@ -286,8 +304,8 @@ it("loads existing recurrence settings into the edit form", () => {
 
 it("shows a delete confirmation only for an existing event and cancels without a request", async () => {
   const event: CalendarEvent = {
-    id: 1, title: "Meeting", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
-    all_day: true, recurring: false, recurrence: null,
+    id: 1, title: "Meeting", description: null, start_at: null, end_at: null,
+    start_on: "2026-08-10", end_on: "2026-08-10", all_day: true, reminder_minutes: null, recurring: false, recurrence: null,
   };
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
@@ -303,8 +321,8 @@ it("shows a delete confirmation only for an existing event and cancels without a
 
 it("deletes an event after confirmation and closes the edit modal", async () => {
   const event: CalendarEvent = {
-    id: 42, title: "Meeting", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
-    all_day: true, recurring: false, recurrence: null,
+    id: 42, title: "Meeting", description: null, start_at: null, end_at: null,
+    start_on: "2026-08-10", end_on: "2026-08-10", all_day: true, reminder_minutes: null, recurring: false, recurrence: null,
   };
   const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
   vi.stubGlobal("fetch", fetchMock);
@@ -321,8 +339,8 @@ it("deletes an event after confirmation and closes the edit modal", async () => 
 
 it("keeps the confirmation open and reports a delete failure", async () => {
   const event: CalendarEvent = {
-    id: 1, title: "Meeting", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
-    all_day: true, recurring: false, recurrence: null,
+    id: 1, title: "Meeting", description: null, start_at: null, end_at: null,
+    start_on: "2026-08-10", end_on: "2026-08-10", all_day: true, reminder_minutes: null, recurring: false, recurrence: null,
   };
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 500 })));
   renderModal(vi.fn(), event);
@@ -335,8 +353,8 @@ it("keeps the confirmation open and reports a delete failure", async () => {
 
 it("explains that deleting a recurring event deletes its series", async () => {
   const event: CalendarEvent = {
-    id: 1, title: "Standup", description: null, start_at: "2026-08-10T00:00:00Z", end_at: "2026-08-11T00:00:00Z",
-    all_day: true, recurring: true, recurrence: { frequency: "weekly", interval: 1 },
+    id: 1, title: "Standup", description: null, start_at: null, end_at: null,
+    start_on: "2026-08-10", end_on: "2026-08-10", all_day: true, reminder_minutes: null, recurring: true, recurrence: { frequency: "weekly", interval: 1 },
   };
   renderModal(vi.fn(), event);
 

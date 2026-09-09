@@ -7,7 +7,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { getMonthGridDays, isSameDay, toDateKey } from "./dateUtils";
+import { getMonthGridDays, isSameDay, parseDateKey, toDateKey } from "./dateUtils";
 import { computeDroppedDates } from "./dragDrop";
 import { groupEventsByDay } from "./groupEventsByDay";
 import { EventLabel } from "./EventButton";
@@ -30,7 +30,7 @@ function capEvents(events: CalendarEvent[]): { visible: CalendarEvent[]; overflo
 
 function EventChip({ event, day, onSelectEvent }: { event: CalendarEvent; day: Date; onSelectEvent: (e: CalendarEvent) => void }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
-    id: `${event.id}:${event.start_at}`,
+    id: `${event.id}:${event.start_on ?? event.start_at}`,
     disabled: event.recurring,
     data: { event },
   });
@@ -42,8 +42,8 @@ function EventChip({ event, day, onSelectEvent }: { event: CalendarEvent; day: D
       {...attributes}
       onClick={(e) => { e.stopPropagation(); onSelectEvent(event); }}
       className={`truncate bg-brand px-1.5 py-0.5 text-left text-xs text-white hover:brightness-110 ${
-        !event.all_day || isSameDay(new Date(event.start_at), day) ? "rounded-l" : "rounded-l-none"
-      } ${!event.all_day || isSameDay(new Date(new Date(event.end_at).getTime() - 1), day) ? "rounded-r" : "rounded-r-none"}`}
+        !event.all_day || isSameDay(parseDateKey(event.start_on ?? ""), day) ? "rounded-l" : "rounded-l-none"
+      } ${!event.all_day || isSameDay(parseDateKey(event.end_on ?? ""), day) ? "rounded-r" : "rounded-r-none"}`}
     >
       <EventLabel event={event} />
     </button>
@@ -87,7 +87,7 @@ function DayCell({
     >
       <div className={`self-end text-sm ${dateLabelClass}`}>{day.getDate()}</div>
       {visible.map((event) => (
-        <EventChip key={`${event.id}-${event.start_at}`} event={event} day={day} onSelectEvent={onSelectEvent} />
+        <EventChip key={`${event.id}-${event.start_on ?? event.start_at}`} event={event} day={day} onSelectEvent={onSelectEvent} />
       ))}
       {overflowCount > 0 && <span className="text-xs text-gray-500 dark:text-gray-400">+{overflowCount}件</span>}
     </div>

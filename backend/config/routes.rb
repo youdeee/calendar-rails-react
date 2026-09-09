@@ -7,6 +7,7 @@ Rails.application.routes.draw do
 
   namespace :api do
     get "me", to: "/me#show"
+    patch "me", to: "/me#update"
 
     namespace :auth do
       post "login", to: "/auth#login"

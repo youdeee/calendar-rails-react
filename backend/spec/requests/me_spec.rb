@@ -9,7 +9,27 @@ RSpec.describe "GET /api/me", type: :request do
     get "/api/me", headers: { "Authorization" => "Bearer #{token}" }
 
     expect(response).to have_http_status(:ok)
-    expect(JSON.parse(response.body)["email"]).to eq("a@example.com")
+    body = JSON.parse(response.body)
+    expect(body["email"]).to eq("a@example.com")
+    expect(body["time_zone"]).to eq("Asia/Tokyo")
+  end
+
+  it "updates the time zone" do
+    token = JsonWebToken.encode(user.id)
+
+    patch "/api/me", params: { time_zone: "America/New_York" }, headers: { "Authorization" => "Bearer #{token}" }
+
+    expect(response).to have_http_status(:ok)
+    expect(JSON.parse(response.body)["time_zone"]).to eq("America/New_York")
+    expect(user.reload.time_zone).to eq("America/New_York")
+  end
+
+  it "rejects an unknown time zone" do
+    token = JsonWebToken.encode(user.id)
+
+    patch "/api/me", params: { time_zone: "Not/AZone" }, headers: { "Authorization" => "Bearer #{token}" }
+
+    expect(response).to have_http_status(:unprocessable_entity)
   end
 
   it "returns 401 without a token" do

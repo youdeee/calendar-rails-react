@@ -1,15 +1,19 @@
 class Event < ApplicationRecord
   belongs_to :user
+  has_many :reminder_deliveries, dependent: :destroy
 
   TITLE_MAX_LENGTH = 200
   DESCRIPTION_MAX_LENGTH = 5000
   ALLOWED_FREQUENCIES = %w[daily weekly monthly].freeze
+  REMINDER_MINUTES_MAX = 43_200
 
   validates :title, presence: true, length: { maximum: TITLE_MAX_LENGTH }
   validates :description, length: { maximum: DESCRIPTION_MAX_LENGTH }
-  validates :start_at, presence: true
-  validates :end_at, presence: true
-  validate :end_at_after_start_at
+  validates :reminder_minutes, numericality: {
+    only_integer: true, greater_than: 0, less_than_or_equal_to: REMINDER_MINUTES_MAX
+  }, allow_nil: true
+  validate :schedule_present
+  validate :end_after_start
   validate :recurrence_params_valid
 
   def recurrence_params=(hash)
@@ -45,21 +49,14 @@ class Event < ApplicationRecord
     rule
   end
 
-  def occurrences_between(range_start, range_end)
-    # ice_cube's occurrences_between excludes anything after range_end down to
-    # the exact clock time; callers pass calendar-day boundaries (e.g. a bare
-    # date parses to midnight), so treat range_end as inclusive through the
-    # end of that day.
+  def occurrences_between(range_start, range_end, time_zone: "UTC")
     inclusive_range_end = range_end.end_of_day
+    return all_day_occurrences_between(range_start, inclusive_range_end, time_zone) if all_day?
 
     unless recurring?
       return (start_at <= inclusive_range_end && end_at >= range_start) ? [start_at] : []
     end
 
-    # An occurrence can start before the visible range and still overlap it
-    # (for example, a three-day all-day event shown in a week beginning on
-    # its second day). Ask IceCube for a duration-sized lookback, then keep
-    # only occurrences that actually intersect the requested range.
     duration = end_at - start_at
     occurrence_search_start = range_start - duration
     schedule = IceCube::Schedule.new(start_at)
@@ -69,12 +66,57 @@ class Event < ApplicationRecord
     end
   end
 
+  def all_day_start_instant(occurrence_on, time_zone)
+    zone = Time.find_zone!(time_zone)
+    zone.local(occurrence_on.year, occurrence_on.month, occurrence_on.day)
+  end
+
   private
 
-  def end_at_after_start_at
-    return if start_at.blank? || end_at.blank?
+  def all_day_occurrences_between(range_start, inclusive_range_end, time_zone)
+    unless recurring?
+      return spans_instant_range?(start_on, end_on, range_start, inclusive_range_end, time_zone) ? [start_on] : []
+    end
 
-    errors.add(:end_at, "must be after start_at") if end_at <= start_at
+    duration_days = (end_on - start_on).to_i
+    schedule = IceCube::Schedule.new(Time.utc(start_on.year, start_on.month, start_on.day))
+    schedule.add_recurrence_rule(ice_cube_rule)
+    search_start = range_start - duration_days.days
+    schedule.occurrences_between(search_start.utc, inclusive_range_end.utc).filter_map do |time|
+      occurrence_on = Date.new(time.year, time.month, time.day)
+      occurrence_end_on = occurrence_on + duration_days
+      next unless spans_instant_range?(occurrence_on, occurrence_end_on, range_start, inclusive_range_end, time_zone)
+
+      occurrence_on
+    end
+  end
+
+  def spans_instant_range?(first_on, last_on, range_start, inclusive_range_end, time_zone)
+    starts = all_day_start_instant(first_on, time_zone)
+    ends = all_day_start_instant(last_on, time_zone) + 1.day
+    starts < inclusive_range_end && ends > range_start
+  end
+
+  def schedule_present
+    if all_day?
+      errors.add(:start_on, "can't be blank") if start_on.blank?
+      errors.add(:end_on, "can't be blank") if end_on.blank?
+    else
+      errors.add(:start_at, "can't be blank") if start_at.blank?
+      errors.add(:end_at, "can't be blank") if end_at.blank?
+    end
+  end
+
+  def end_after_start
+    if all_day?
+      return if start_on.blank? || end_on.blank?
+
+      errors.add(:end_on, "must be on or after start_on") if end_on < start_on
+    else
+      return if start_at.blank? || end_at.blank?
+
+      errors.add(:end_at, "must be after start_at") if end_at <= start_at
+    end
   end
 
   def recurrence_params_valid

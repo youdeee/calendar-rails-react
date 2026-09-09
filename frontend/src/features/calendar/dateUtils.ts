@@ -46,6 +46,19 @@ export function addDays(date: Date, amount: number): Date {
   return result;
 }
 
+export function parseDateKey(dateKey: string): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+export function addDateKey(dateKey: string, days: number): string {
+  return toDateKey(addDays(parseDateKey(dateKey), days));
+}
+
+export function daysBetweenKeys(startOn: string, endOn: string): number {
+  return Math.round((parseDateKey(endOn).getTime() - parseDateKey(startOn).getTime()) / 86_400_000);
+}
+
 export function addWeeks(date: Date, amount: number): Date {
   return addDays(date, amount * 7);
 }

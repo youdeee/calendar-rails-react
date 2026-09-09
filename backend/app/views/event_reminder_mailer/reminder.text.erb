@@ -1,0 +1,7 @@
+<%= @event.title %>
+
+<% if @event.all_day? %>
+終日: <%= @occurrence_on %>
+<% else %>
+開始: <%= @occurrence_start_at %>
+<% end %>

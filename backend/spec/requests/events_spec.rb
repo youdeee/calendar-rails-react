@@ -218,4 +218,40 @@ RSpec.describe "Events", type: :request do
       expect(Event.exists?(event.id)).to be true
     end
   end
+
+  describe "all-day and reminders" do
+    it "creates an all-day event from start_on and end_on" do
+      post "/api/events", params: {
+        event: { title: "Holiday", all_day: true, start_on: "2026-08-10", end_on: "2026-08-12", reminder_minutes: 360 }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:created)
+      body = JSON.parse(response.body)
+      expect(body["all_day"]).to eq(true)
+      expect(body["start_on"]).to eq("2026-08-10")
+      expect(body["end_on"]).to eq("2026-08-12")
+      expect(body["start_at"]).to be_nil
+      expect(body["reminder_minutes"]).to eq(360)
+      expect(DispatchDueRemindersJob).to have_been_enqueued.with(Event.last.id)
+    end
+
+    it "lists an all-day event in the requested range" do
+      user.events.create!(title: "Holiday", all_day: true, start_on: Date.new(2026, 8, 10),
+                           end_on: Date.new(2026, 8, 10))
+
+      get "/api/events", params: { from: "2026-08-01", to: "2026-08-31" }, headers: auth_headers
+
+      titles = JSON.parse(response.body).map { |e| e["title"] }
+      expect(titles).to eq(["Holiday"])
+    end
+
+    it "rejects reminder_minutes above 30 days" do
+      post "/api/events", params: {
+        event: { title: "Lunch", start_at: "2026-08-10T12:00:00+09:00", end_at: "2026-08-10T13:00:00+09:00",
+                 reminder_minutes: 43_201 }
+      }, headers: auth_headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
 end

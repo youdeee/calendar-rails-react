@@ -4,7 +4,7 @@ Rails 8.1 API backend + Vite/React frontend. Deployed on Render (backend), Verce
 
 ## Local development
 
-1. Start Postgres: `docker compose up -d db`
+1. Start Postgres, Redis, and Mailpit: `docker compose up -d db redis mailpit`
 2. Backend:
    ```
    cd backend
@@ -12,12 +12,18 @@ Rails 8.1 API backend + Vite/React frontend. Deployed on Render (backend), Verce
    bin/rails db:prepare
    bundle exec rails server
    ```
-3. Frontend:
+3. Sidekiq (another terminal; required for reminder emails):
+   ```
+   cd backend
+   bundle exec sidekiq
+   ```
+4. Frontend:
    ```
    cd frontend
    npm install
    npm run dev
    ```
+5. Reminder emails appear in Mailpit: http://localhost:8025
 
 ## Java / Spring Boot backend (study)
 
@@ -63,6 +69,7 @@ Rails / Java / Go は残したまま、学習用の第4バックエンドが `ba
 | `DATABASE_URL` | — | production only; Neon connection string |
 | `FRONTEND_ORIGIN` | — | allowed CORS origin |
 | `GOOGLE_CLIENT_ID` | — | Google Sign-In |
+| `REDIS_URL` | `redis://127.0.0.1:6379/0` | Sidekiq (local) |
 
 ## Frontend environment variables
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_08_135432) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_09_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -18,9 +18,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_08_135432) do
     t.boolean "all_day", default: false, null: false
     t.datetime "created_at", null: false
     t.text "description"
-    t.datetime "end_at", null: false
+    t.datetime "end_at"
+    t.date "end_on"
     t.text "recurrence_rule"
-    t.datetime "start_at", null: false
+    t.integer "reminder_minutes"
+    t.datetime "start_at"
+    t.date "start_on"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
@@ -39,12 +42,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_08_135432) do
     t.index ["user_id"], name: "index_refresh_tokens_on_user_id"
   end
 
+  create_table "reminder_deliveries", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "delivered_at"
+    t.bigint "event_id", null: false
+    t.datetime "occurrence_start_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["event_id", "occurrence_start_at"], name: "index_reminder_deliveries_on_event_id_and_occurrence_start_at", unique: true
+    t.index ["event_id"], name: "index_reminder_deliveries_on_event_id"
+    t.index ["user_id"], name: "index_reminder_deliveries_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "avatar_url"
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.string "google_uid", null: false
     t.string "name", null: false
+    t.string "time_zone", default: "Asia/Tokyo", null: false
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
@@ -52,4 +68,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_08_135432) do
 
   add_foreign_key "events", "users"
   add_foreign_key "refresh_tokens", "users"
+  add_foreign_key "reminder_deliveries", "events"
+  add_foreign_key "reminder_deliveries", "users"
 end

@@ -8,7 +8,10 @@ function makeEvent(overrides: Partial<CalendarEvent>): CalendarEvent {
     description: null,
     start_at: "2026-08-10T09:00:00",
     end_at: "2026-08-10T10:00:00",
+    start_on: null,
+    end_on: null,
     all_day: false,
+    reminder_minutes: null,
     recurring: false,
     recurrence: null,
     ...overrides,
@@ -38,4 +41,23 @@ it("keeps events grouped under separate day keys untouched", () => {
 
   expect(grouped.get("2026-08-10")?.map((e) => e.id)).toEqual([1]);
   expect(grouped.get("2026-08-11")?.map((e) => e.id)).toEqual([2]);
+});
+
+it("groups an all-day event under each inclusive date key", () => {
+  const trip = makeEvent({
+    id: 3,
+    title: "Trip",
+    all_day: true,
+    start_at: null,
+    end_at: null,
+    start_on: "2026-08-10",
+    end_on: "2026-08-12",
+  });
+
+  const grouped = groupEventsByDay([trip]);
+
+  expect(grouped.get("2026-08-10")?.map((e) => e.id)).toEqual([3]);
+  expect(grouped.get("2026-08-11")?.map((e) => e.id)).toEqual([3]);
+  expect(grouped.get("2026-08-12")?.map((e) => e.id)).toEqual([3]);
+  expect(grouped.get("2026-08-13")).toBeUndefined();
 });
